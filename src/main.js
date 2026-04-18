@@ -126,8 +126,8 @@ class GameScene extends Phaser.Scene {
         // Tiled JSON 내부의 이름과 방금 로드한 img1~4를 연결
         const tiles1 = map.addTilesetImage('test.1', 'img1');
         const tiles2 = map.addTilesetImage('test.3', 'img2');
-        const tiles3 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 005', 'img3');
-        const tiles4 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 002', 'img4');
+        const tiles3 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-005', 'img3');
+        const tiles4 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-002', 'img4');
 
         // null이 아닌 타일셋들만 모아서 배열로 만듦
         const allTiles = [tiles1, tiles2, tiles3, tiles4].filter(t => t !== null);
