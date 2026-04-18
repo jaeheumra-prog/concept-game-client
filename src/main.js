@@ -74,55 +74,41 @@ class LoginScene extends Phaser.Scene {
     const ui = document.getElementById('login-ui');
     const nameInput = document.getElementById('name-input');
     const groupInput = document.getElementById('group-input');
-    const button = document.getElementById('login-button');
     ui.style.display = 'flex';
-    button.replaceWith(button.cloneNode(true));
-    const newButton = document.getElementById('login-button');
-
-    newButton.addEventListener('click', async () => {
+    document.getElementById('login-button').onclick = async () => {
       const inputName = nameInput.value.trim();
-      const inputGroup = groupInput.value.trim();
-      if (!inputName || !inputGroup) return alert('이름과 모둠 번호를 입력하세요!');
       const playerInfo = PLAYER_DATA[inputName];
       if (!playerInfo) return alert('등록되지 않은 이름입니다!');
-
-      // 💡 joinOptions에 group을 포함시켜 서버에서 조별 분리(filterBy)를 하도록 합니다.
-      const joinOptions = { ...playerInfo, group: inputGroup, realName: inputName };
       const client = new Client('wss://concept-game-server.onrender.com');
-
       try {
-        const room = await client.joinOrCreate('my_room', joinOptions);
+        const room = await client.joinOrCreate('my_room', { ...playerInfo, group: groupInput.value.trim(), realName: inputName });
         ui.style.display = 'none';
-        this.scene.start('GameScene', { room: room, myInfo: joinOptions });
-      } catch (e) {
-        alert('서버 접속 실패! 잠시 후 다시 시도하세요.');
-      }
-    });
+        this.scene.start('GameScene', { room, myInfo: playerInfo });
+      } catch (e) { alert('서버 접속 실패!'); }
+    };
   }
 }
 
 class GameScene extends Phaser.Scene {
   constructor() { super({ key: 'GameScene' }); }
+  
   init(data) {
     this.room = data.room;
     this.myInfo = data.myInfo;
     this.playerSprites = {};
     this.mySprite = null;
+    this.isChangeScene = false; // 💡 무한 재시작 방지 플래그
   }
 
   preload() {
-    // 경로 최적화 및 에셋 로드
     this.load.image('tiles', '/assets/test.1.png'); 
     this.load.tilemapTiledJSON('map', '/assets/my_map.json'); 
     this.load.image('item', '/assets/item.png');
-
-    for(let i=1; i<=5; i++) {
-        this.load.image(`test_buddy${i}`, `/assets/test_buddy${i}.png`);
-    }
+    for(let i=1; i<=5; i++) this.load.image(`test_buddy${i}`, `/assets/test_buddy${i}.png`);
   }
 
   create() {
-    // 💡 텍스처 중복 생성 에러 방지 체크
+    // 빛 텍스처 중복 생성 방지
     if (!this.textures.exists('light_mask')) {
         const canvas = this.textures.createCanvas('light_mask', 256, 256);
         const ctx = canvas.context;
@@ -142,45 +128,42 @@ class GameScene extends Phaser.Scene {
       if (wallLayer) wallLayer.setCollisionByProperty({ collides: true });
     }
 
-    // 💡 Fog of War (안개) 설정
-    this.fog = this.make.renderTexture({
-      width: map.widthInPixels || 800,
-      height: map.heightInPixels || 600
-    }, true);
-    this.fog.fill(0x000000, 0.95); 
-    this.fog.setDepth(80); 
-
+    // 💡 Fog of War 설정
+    this.fog = this.make.renderTexture({ width: map.widthInPixels || 800, height: map.heightInPixels || 600 }, true);
+    this.fog.fill(0x000000, 0.95).setDepth(80);
     this.lightBrush = this.make.image({ key: 'light_mask' }, false);
-    this.cameras.main.setBackgroundColor('#2c3e50');
 
-    // 💡 아이템 배치 (Tiled 오브젝트 레이어 우선 로드)
+    // 아이템 배치
     this.items = this.physics.add.group();
     const itemLayer = map.getObjectLayer('Items');
     if (itemLayer) {
       itemLayer.objects.forEach(obj => {
-        const item = this.items.create(obj.x, obj.y, 'item');
-        item.setOrigin(0, 1).setDepth(50);
+        this.items.create(obj.x, obj.y, 'item').setOrigin(0, 1).setDepth(50);
       });
     } else {
+      // 맵이 없을 경우를 위한 랜덤 배치 (캐릭터 시작점 400,300을 피해 배치)
       for(let i=0; i<5; i++) {
         this.items.create(Phaser.Math.Between(100, 700), Phaser.Math.Between(100, 500), 'item').setDepth(50);
       }
     }
 
-    // 상단 UI: [모둠 번호] 표시 추가
-    this.scoreText = this.add.text(10, 40, `[ ${this.myInfo.group}모둠 ] 아이템 수집: 0 / 5`, { 
+    this.scoreText = this.add.text(10, 40, `[ ${this.myInfo.group}모둠 ] 아이템: 0 / 5`, { 
         font: '20px Arial', fill: '#ffff00', stroke: '#000000', strokeThickness: 3
     }).setScrollFactor(0).setDepth(100);
 
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.room.onStateChange(() => this.syncPlayers());
 
-    // 서버 아이템 상태 연동
+    // 💡 [중요] 충돌 감지는 create에서 딱 한 번만 설정합니다!
+    this.physics.add.overlap(this.items, this.items, (item) => {}, null, this); // 그룹 설정
+
+    this.room.onStateChange(() => this.syncPlayers());
     this.room.state.listen("itemsCollected", (current) => {
-        this.scoreText.setText(`[ ${this.myInfo.group}모둠 ] 아이템 수집: ${current} / 5`);
+        this.scoreText.setText(`[ ${this.myInfo.group}모둠 ] 아이템: ${current} / 5`);
     });
 
     this.room.onMessage("changeMap", (data) => {
+        if (this.isChangeScene) return; // 이미 전환 중이면 무시
+        this.isChangeScene = true;
         alert(data.message);
         this.scene.restart({ room: this.room, myInfo: this.myInfo });
     });
@@ -192,40 +175,28 @@ class GameScene extends Phaser.Scene {
         const sprite = this.physics.add.image(player.x, player.y, player.character);
         sprite.setScale(0.8).setDepth(90); 
         this.playerSprites[sessionId] = sprite;
-
-        const label = this.add.text(player.x, player.y - 45, player.job, { font: '14px Arial', fill: '#ffffff' }).setOrigin(0.5);
-        this.playerSprites[sessionId].label = label;
-        this.playerSprites[sessionId].label.setDepth(100);
-
-        // 💡 직업별 시야 차등 (길잡이 특권 적용)
         this.playerSprites[sessionId].visionSize = (player.character === "test_buddy3") ? 450 : 200;
 
+        // 💡 [수정] 충돌 감지 로직을 sync가 아닌 여기서 '한 번만' 등록
         if (sessionId === this.room.sessionId) {
-            this.mySprite = sprite;
-            this.physics.add.overlap(this.mySprite, this.items, (me, item) => {
-                item.destroy(); 
-                this.room.send("collectItem"); 
-            });
+          this.mySprite = sprite;
+          this.physics.add.overlap(this.mySprite, this.items, (me, item) => {
+            item.destroy(); 
+            this.room.send("collectItem"); 
+          }, null, this);
         }
       } else {
         const sprite = this.playerSprites[sessionId];
         sprite.x = player.x;
         sprite.y = player.y;
-        if (sprite.label) {
-          sprite.label.x = player.x;
-          sprite.label.y = player.y - 45;
-        }
       }
     });
   }
 
   update() {
-    if (!this.room || !this.playerSprites) return;
+    if (!this.room || !this.mySprite) return;
     
-    // 매 프레임 안개 초기화 및 모든 플레이어 시야 뚫기
-    this.fog.clear();
-    this.fog.fill(0x000000, 0.95);
-
+    this.fog.clear().fill(0x000000, 0.95);
     Object.keys(this.playerSprites).forEach(id => {
       const sprite = this.playerSprites[id];
       const vSize = sprite.visionSize || 200;
@@ -234,9 +205,9 @@ class GameScene extends Phaser.Scene {
     });
 
     if (this.cursors.left.isDown) this.room.send("move", { dir: "left" });
-    if (this.cursors.right.isDown) this.room.send("move", { dir: "right" });
+    else if (this.cursors.right.isDown) this.room.send("move", { dir: "right" });
     if (this.cursors.up.isDown) this.room.send("move", { dir: "up" });
-    if (this.cursors.down.isDown) this.room.send("move", { dir: "down" });
+    else if (this.cursors.down.isDown) this.room.send("move", { dir: "down" });
   }
 }
 
