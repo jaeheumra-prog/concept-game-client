@@ -1,71 +1,58 @@
 import * as Phaser from 'phaser';
 import { Client } from 'colyseus.js';
 
-// 📊 1조 ~ 11조 전체 팀원 성향 분석 결과 데이터
 const PLAYER_DATA = {
-  // 1조 only1
-  "김민재": { job: "분석자(창의)", character: "slime_green" },
-  "박채연": { job: "개척자(성실)", character: "slime_blue" },
-  "손유정": { job: "길잡이(외향)", character: "slime_red" },
-  "이승환": { job: "조율자(협력)", character: "slime_yellow" },
-  "이연재": { job: "설계자(신경)", character: "slime_purple" },
-  // 2조 plot twist
-  "윤현근": { job: "분석자(창의)", character: "slime_green" },
-  "심나이": { job: "개척자(성실)", character: "slime_blue" },
-  "차시훈": { job: "길잡이(외향)", character: "slime_red" },
-  "이율": { job: "조율자(협력)", character: "slime_yellow" },
-  "남윤주": { job: "설계자(신경)", character: "slime_purple" },
-  // 3조 세얼간이
-  "안비비안": { job: "분석자(창의)", character: "slime_green" },
-  "이택준": { job: "개척자(성실)", character: "slime_blue" },
-  "송수현": { job: "길잡이(외향)", character: "slime_red" },
-  "김찬영": { job: "조율자(협력)", character: "slime_yellow" },
-  // 4조 일단해보조
-  "김가윤": { job: "분석자(창의)", character: "slime_green" },
-  "김수지": { job: "개척자(성실)", character: "slime_blue" },
-  "김재현": { job: "길잡이(외향)", character: "slime_red" },
-  "이용은": { job: "조율자(협력)", character: "slime_yellow" },
-  "현동건": { job: "설계자(신경)", character: "slime_purple" },
-  // 5조 HighFive
-  "라재흠": { job: "분석자(창의)", character: "slime_green" },
-  "이정훈": { job: "개척자(성실)", character: "slime_blue" },
-  "이지원": { job: "길잡이(외향)", character: "slime_red" },
-  "홍원준": { job: "조율자(협력)", character: "slime_yellow" },
-  // 6조 허니
-  "석민정": { job: "분석자(창의)", character: "slime_green" },
-  "손채빈": { job: "개척자(성실)", character: "slime_blue" },
-  "안은기": { job: "길잡이(외향)", character: "slime_red" },
-  "홍석준": { job: "조율자(협력)", character: "slime_yellow" },
-  // 7조 마감직전 오캐스트라
-  "민승기": { job: "분석자(창의)", character: "slime_green" },
-  "하윤채": { job: "개척자(성실)", character: "slime_blue" },
-  "강민서": { job: "길잡이(외향)", character: "slime_red" },
-  "최재석": { job: "조율자(협력)", character: "slime_yellow" },
-  // 8조 일단틀어줘
-  "김유찬": { job: "분석자(창의)", character: "slime_green" },
-  "박승훈": { job: "개척자(성실)", character: "slime_blue" },
-  "박재현": { job: "길잡이(외향)", character: "slime_red" },
-  "배지우": { job: "조율자(협력)", character: "slime_yellow" },
-  // 9조 제작소
-  "김담희": { job: "분석자(창의)", character: "slime_green" },
-  "이기서": { job: "개척자(성실)", character: "slime_blue" },
-  "장윤서": { job: "길잡이(외향)", character: "slime_red" },
-  "박민우": { job: "조율자(협력)", character: "slime_yellow" },
-  "박지연": { job: "설계자(신경)", character: "slime_purple" },
-  // 10조 카트라이더
-  "설진": { job: "분석자(창의)", character: "slime_green" },
-  "장원우": { job: "개척자(성실)", character: "slime_blue" },
-  "이지민": { job: "길잡이(외향)", character: "slime_red" },
-  "이지훈": { job: "조율자(협력)", character: "slime_yellow" },
-  "김태성": { job: "설계자(신경)", character: "slime_purple" },
-  // 11조 최예
-  "김수현": { job: "분석자(창의)", character: "slime_green" },
-  "이성주": { job: "개척자(성실)", character: "slime_blue" },
-  "최시현": { job: "길잡이(외향)", character: "slime_red" },
-  "이승회": { job: "조율자(협력)", character: "slime_yellow" },
-  "황유주": { job: "설계자(신경)", character: "slime_purple" },
-  // 테스터
-  "테스터": { job: "조율자", character: "slime_yellow" }
+  "김민재": { job: "분석자(창의)", character: "test_buddy1" },
+  "박채연": { job: "개척자(성실)", character: "test_buddy2" },
+  "손유정": { job: "길잡이(외향)", character: "test_buddy3" },
+  "이승환": { job: "조율자(협력)", character: "test_buddy4" },
+  "이연재": { job: "설계자(신경)", character: "test_buddy5" },
+  "윤현근": { job: "분석자(창의)", character: "test_buddy1" },
+  "심나이": { job: "개척자(성실)", character: "test_buddy2" },
+  "차시훈": { job: "길잡이(외향)", character: "test_buddy3" },
+  "이율":   { job: "조율자(협력)", character: "test_buddy4" },
+  "남윤주": { job: "설계자(신경)", character: "test_buddy5" },
+  "안비비안": { job: "분석자(창의)", character: "test_buddy1" },
+  "이택준": { job: "개척자(성실)", character: "test_buddy2" },
+  "송수현": { job: "길잡이(외향)", character: "test_buddy3" },
+  "김찬영": { job: "조율자(협력)", character: "test_buddy4" },
+  "김가윤": { job: "분석자(창의)", character: "test_buddy1" },
+  "김수지": { job: "개척자(성실)", character: "test_buddy2" },
+  "김재현": { job: "길잡이(외향)", character: "test_buddy3" },
+  "이용은": { job: "조율자(협력)", character: "test_buddy4" },
+  "현동건": { job: "설계자(신경)", character: "test_buddy5" },
+  "라재흠": { job: "분석자(창의)", character: "test_buddy1" },
+  "이정훈": { job: "개척자(성실)", character: "test_buddy2" },
+  "이지원": { job: "길잡이(외향)", character: "test_buddy3" },
+  "홍원준": { job: "조율자(협력)", character: "test_buddy4" },
+  "석민정": { job: "분석자(창의)", character: "test_buddy1" },
+  "손채빈": { job: "개척자(성실)", character: "test_buddy2" },
+  "안은기": { job: "길잡이(외향)", character: "test_buddy3" },
+  "홍석준": { job: "조율자(협력)", character: "test_buddy4" },
+  "민승기": { job: "분석자(창의)", character: "test_buddy1" },
+  "하윤채": { job: "개척자(성실)", character: "test_buddy2" },
+  "강민서": { job: "길잡이(외향)", character: "test_buddy3" },
+  "최재석": { job: "조율자(협력)", character: "test_buddy4" },
+  "김유찬": { job: "분석자(창의)", character: "test_buddy1" },
+  "박승훈": { job: "개척자(성실)", character: "test_buddy2" },
+  "박재현": { job: "길잡이(외향)", character: "test_buddy3" },
+  "배지우": { job: "조율자(협력)", character: "test_buddy4" },
+  "김담희": { job: "분석자(창의)", character: "test_buddy1" },
+  "이기서": { job: "개척자(성실)", character: "test_buddy2" },
+  "장윤서": { job: "길잡이(외향)", character: "test_buddy3" },
+  "박민우": { job: "조율자(협력)", character: "test_buddy4" },
+  "박지연": { job: "설계자(신경)", character: "test_buddy5" },
+  "설진":   { job: "분석자(창의)", character: "test_buddy1" },
+  "장원우": { job: "개척자(성실)", character: "test_buddy2" },
+  "이지민": { job: "길잡이(외향)", character: "test_buddy3" },
+  "이지민": { job: "조율자(협력)", character: "test_buddy4" },
+  "김태성": { job: "설계자(신경)", character: "test_buddy5" },
+  "김수현": { job: "분석자(창의)", character: "test_buddy1" },
+  "이성주": { job: "개척자(성실)", character: "test_buddy2" },
+  "최시현": { job: "길잡이(외향)", character: "test_buddy3" },
+  "이승회": { job: "조율자(협력)", character: "test_buddy4" },
+  "황유주": { job: "설계자(신경)", character: "test_buddy5" },
+  "테스터": { job: "조율자", character: "test_buddy4" }
 };
 
 class LoginScene extends Phaser.Scene {
@@ -82,19 +69,19 @@ class LoginScene extends Phaser.Scene {
     newButton.addEventListener('click', async () => {
       const inputName = nameInput.value.trim();
       const inputGroup = groupInput.value.trim();
-      if (!inputName || !inputGroup) return alert('이름과 모둠 번호를 모두 입력해주세요!');
+      if (!inputName || !inputGroup) return alert('이름과 모둠 번호를 입력하세요!');
       const playerInfo = PLAYER_DATA[inputName];
       if (!playerInfo) return alert('등록되지 않은 이름입니다!');
 
-      const joinOptions = { ...playerInfo, group: inputGroup };
+      const joinOptions = { ...playerInfo, group: inputGroup, realName: inputName };
       const client = new Client('wss://concept-game-server.onrender.com');
 
       try {
         const room = await client.joinOrCreate('my_room', joinOptions);
         ui.style.display = 'none';
-        this.scene.start('GameScene', { room: room, myInfo: joinOptions, inputName: inputName });
+        this.scene.start('GameScene', { room: room, myInfo: joinOptions });
       } catch (e) {
-        alert('서버 접속 실패! 서버가 깨어날 때까지 1분 뒤 다시 시도하세요.');
+        alert('서버 접속 실패! 잠시 후 다시 시도하세요.');
       }
     });
   }
@@ -105,34 +92,31 @@ class GameScene extends Phaser.Scene {
   init(data) {
     this.room = data.room;
     this.myInfo = data.myInfo;
-    this.userName = data.inputName;
     this.playerSprites = {};
+    console.log("🎮 로그인 성공! 내 캐릭터:", this.myInfo.character);
   }
 
   preload() {
-    // 💡 Tiled 파일 로드 (public/assets/ 폴더에 파일이 있어야 함)
-    this.load.image('tiles', 'assets/test.1.png'); // 타일셋 이미지 파일명
-    this.load.tilemapTiledJSON('map', 'assets/my_map.json'); // Tiled에서 저장한 JSON 파일명
+    this.load.image('tiles', 'assets/test.1.png'); 
+    this.load.tilemapTiledJSON('map', '/assets/my_map.json'); 
+
+    // 💡 이미지 5개 로드
+    this.load.image('test_buddy1', '/assets/test_buddy1.png');
+    this.load.image('test_buddy2', '/assets/test_buddy2.png');
+    this.load.image('test_buddy3', '/assets/test_buddy3.png');
+    this.load.image('test_buddy4', '/assets/test_buddy4.png');
+    this.load.image('test_buddy5', '/assets/test_buddy5.png');
   }
 
   create() {
     const map = this.make.tilemap({ key: 'map' });
-    
-    // 💡 [중요] 'test.1' 부분은 Tiled에서 타일셋을 만들 때 정한 이름으로 바꿔야 합니다!
     const tileset = map.addTilesetImage('test.1', 'tiles'); 
-
     if (tileset) {
-      // Tiled 레이어 이름: "바닥", "타일 레이어 2"
       map.createLayer('바닥', tileset, 0, 0);
       const wallLayer = map.createLayer('타일 레이어 2', tileset, 0, 0);
-      
-      // 충돌 설정 (Tiled에서 collides 속성을 준 경우)
       if (wallLayer) wallLayer.setCollisionByProperty({ collides: true });
     }
-
     this.cameras.main.setBackgroundColor('#2c3e50');
-    this.add.text(10, 10, `[ ${this.myInfo.group}모둠 ] ${this.userName} (${this.myInfo.job})`, { font: '18px Arial', fill: '#ffffff' }).setScrollFactor(0);
-    
     this.cursors = this.input.keyboard.createCursorKeys();
     this.room.onStateChange(() => this.syncPlayers());
   }
@@ -140,17 +124,23 @@ class GameScene extends Phaser.Scene {
   syncPlayers() {
     this.room.state.players.forEach((player, sessionId) => {
       if (!this.playerSprites[sessionId]) {
-        let color = 0x00ff00;
-        if (player.character.includes('red')) color = 0xff0000;
-        if (player.character.includes('purple')) color = 0x800080;
-        if (player.character.includes('blue')) color = 0x0000ff;
-        if (player.character.includes('yellow')) color = 0xffff00;
+        console.log(`👤 플레이어 생성 시도: ${player.character} (Session: ${sessionId})`);
         
-        const rect = this.add.rectangle(player.x, player.y, 32, 32, color);
-        this.playerSprites[sessionId] = rect;
+        // 💡 만약 여기서도 네모가 뜬다면 코드 자체가 안 바뀐 것입니다.
+        const sprite = this.add.image(player.x, player.y, player.character);
+        sprite.setScale(0.8); 
+        this.playerSprites[sessionId] = sprite;
+
+        const label = this.add.text(player.x, player.y - 45, player.job, { font: '14px Arial', fill: '#ffffff' }).setOrigin(0.5);
+        this.playerSprites[sessionId].label = label;
       } else {
-        this.playerSprites[sessionId].x = player.x;
-        this.playerSprites[sessionId].y = player.y;
+        const sprite = this.playerSprites[sessionId];
+        sprite.x = player.x;
+        sprite.y = player.y;
+        if (sprite.label) {
+          sprite.label.x = player.x;
+          sprite.label.y = player.y - 45;
+        }
       }
     });
   }
@@ -165,10 +155,8 @@ class GameScene extends Phaser.Scene {
 }
 
 const config = {
-  type: Phaser.AUTO,
-  width: 800, height: 600,
-  parent: 'game-container',
-  scene: [LoginScene, GameScene],
+  type: Phaser.AUTO, width: 800, height: 600,
+  parent: 'game-container', scene: [LoginScene, GameScene],
   physics: { default: 'arcade', arcade: { debug: false } }
 };
 new Phaser.Game(config);
