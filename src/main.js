@@ -97,10 +97,11 @@ class GameScene extends Phaser.Scene {
     this.myInfo = data.myInfo;
     this.playerSprites = {};
     this.mySprite = null;
-    this.isChangeScene = false; // 💡 무한 재시작 방지 플래그
+    this.isChangeScene = false; 
   }
 
   preload() {
+    // ⚠️ TODO: 에셋 404 에러 해결(GitHub 업로드) 후 활성화 필요
     this.load.image('tiles', '/assets/test.1.png'); 
     this.load.tilemapTiledJSON('map', '/assets/my_map.json'); 
     this.load.image('item', '/assets/item.png');
@@ -108,7 +109,15 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
-    // 빛 텍스처 중복 생성 방지
+    /* ---------------------------------------------------------
+       💡 [메모] 시야(Fog of War) 및 맵 로드 일시 중단
+       - 404 에러로 인해 화면이 검게 변하는 현상을 방지하기 위함
+       - 밝은 배경에서 캐릭터 이동이 동기화되는지 우선 확인
+       --------------------------------------------------------- */
+    this.cameras.main.setBackgroundColor('#2c3e50');
+
+    // 💡 TODO: 빛 텍스처 생성 로직 (나중에 활성화)
+    /*
     if (!this.textures.exists('light_mask')) {
         const canvas = this.textures.createCanvas('light_mask', 256, 256);
         const ctx = canvas.context;
@@ -119,7 +128,10 @@ class GameScene extends Phaser.Scene {
         ctx.fillRect(0, 0, 256, 256);
         canvas.refresh();
     }
+    */
 
+    // 💡 TODO: 맵 레이어 생성 (나중에 활성화)
+    /*
     const map = this.make.tilemap({ key: 'map' });
     const tileset = map.addTilesetImage('test.1', 'tiles'); 
     if (tileset) {
@@ -127,46 +139,37 @@ class GameScene extends Phaser.Scene {
       const wallLayer = map.createLayer('타일 레이어 2', tileset, 0, 0);
       if (wallLayer) wallLayer.setCollisionByProperty({ collides: true });
     }
+    */
 
-    // 💡 Fog of War 설정
-    this.fog = this.make.renderTexture({ width: map.widthInPixels || 800, height: map.heightInPixels || 600 }, true);
+    // 💡 TODO: Fog of War 레이어 (나중에 활성화)
+    /*
+    this.fog = this.make.renderTexture({ width: 800, height: 600 }, true);
     this.fog.fill(0x000000, 0.95).setDepth(80);
     this.lightBrush = this.make.image({ key: 'light_mask' }, false);
+    */
 
-    // 아이템 배치
-    this.items = this.physics.add.group();
-    const itemLayer = map.getObjectLayer('Items');
-    if (itemLayer) {
-      itemLayer.objects.forEach(obj => {
-        this.items.create(obj.x, obj.y, 'item').setOrigin(0, 1).setDepth(50);
-      });
-    } else {
-      // 맵이 없을 경우를 위한 랜덤 배치 (캐릭터 시작점 400,300을 피해 배치)
-      for(let i=0; i<5; i++) {
-        this.items.create(Phaser.Math.Between(100, 700), Phaser.Math.Between(100, 500), 'item').setDepth(50);
-      }
-    }
-
-    this.scoreText = this.add.text(10, 40, `[ ${this.myInfo.group}모둠 ] 아이템: 0 / 5`, { 
-        font: '20px Arial', fill: '#ffff00', stroke: '#000000', strokeThickness: 3
+    // 상단 UI: 접속 정보 표시
+    this.scoreText = this.add.text(10, 10, `[ ${this.myInfo.group}모둠 ] 접속 성공 - 이동 테스트 중`, { 
+        font: '20px Arial', fill: '#ffffff', stroke: '#000000', strokeThickness: 3
     }).setScrollFactor(0).setDepth(100);
 
     this.cursors = this.input.keyboard.createCursorKeys();
 
-    // 💡 [중요] 충돌 감지는 create에서 딱 한 번만 설정합니다!
-    this.physics.add.overlap(this.items, this.items, (item) => {}, null, this); // 그룹 설정
-
     this.room.onStateChange(() => this.syncPlayers());
+
+    // 💡 TODO: 아이템 수집 및 맵 전환 메시지 리스너 (나중에 활성화)
+    /*
     this.room.state.listen("itemsCollected", (current) => {
         this.scoreText.setText(`[ ${this.myInfo.group}모둠 ] 아이템: ${current} / 5`);
     });
 
     this.room.onMessage("changeMap", (data) => {
-        if (this.isChangeScene) return; // 이미 전환 중이면 무시
+        if (this.isChangeScene) return;
         this.isChangeScene = true;
         alert(data.message);
         this.scene.restart({ room: this.room, myInfo: this.myInfo });
     });
+    */
   }
 
   syncPlayers() {
@@ -175,20 +178,29 @@ class GameScene extends Phaser.Scene {
         const sprite = this.physics.add.image(player.x, player.y, player.character);
         sprite.setScale(0.8).setDepth(90); 
         this.playerSprites[sessionId] = sprite;
-        this.playerSprites[sessionId].visionSize = (player.character === "test_buddy3") ? 450 : 200;
 
-        // 💡 [수정] 충돌 감지 로직을 sync가 아닌 여기서 '한 번만' 등록
+        const label = this.add.text(player.x, player.y - 45, player.job, { font: '14px Arial', fill: '#ffffff' }).setOrigin(0.5);
+        this.playerSprites[sessionId].label = label;
+        this.playerSprites[sessionId].label.setDepth(100);
+
         if (sessionId === this.room.sessionId) {
           this.mySprite = sprite;
+          // 💡 TODO: 아이템 충돌 감지 로직 (나중에 활성화)
+          /*
           this.physics.add.overlap(this.mySprite, this.items, (me, item) => {
             item.destroy(); 
             this.room.send("collectItem"); 
           }, null, this);
+          */
         }
       } else {
         const sprite = this.playerSprites[sessionId];
         sprite.x = player.x;
         sprite.y = player.y;
+        if (sprite.label) {
+          sprite.label.x = player.x;
+          sprite.label.y = player.y - 45;
+        }
       }
     });
   }
@@ -196,13 +208,18 @@ class GameScene extends Phaser.Scene {
   update() {
     if (!this.room || !this.mySprite) return;
     
-    this.fog.clear().fill(0x000000, 0.95);
-    Object.keys(this.playerSprites).forEach(id => {
-      const sprite = this.playerSprites[id];
-      const vSize = sprite.visionSize || 200;
-      this.lightBrush.setScale(vSize / 256);
-      this.fog.erase(this.lightBrush, sprite.x, sprite.y);
-    });
+    // 💡 TODO: 매 프레임 시야 구멍 뚫기 로직 (나중에 활성화)
+    /*
+    if (this.fog) {
+        this.fog.clear().fill(0x000000, 0.95);
+        Object.keys(this.playerSprites).forEach(id => {
+          const sprite = this.playerSprites[id];
+          const vSize = (sprite.texture.key === "test_buddy3") ? 450 : 200;
+          this.lightBrush.setScale(vSize / 256);
+          this.fog.erase(this.lightBrush, sprite.x, sprite.y);
+        });
+    }
+    */
 
     if (this.cursors.left.isDown) this.room.send("move", { dir: "left" });
     else if (this.cursors.right.isDown) this.room.send("move", { dir: "right" });
