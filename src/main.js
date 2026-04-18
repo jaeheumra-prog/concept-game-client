@@ -111,6 +111,7 @@ class GameScene extends Phaser.Scene {
     this.load.image('img3', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-005.png');
     this.load.image('img4', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-002.png');
     
+    // 캐릭터 이미지 로드 (이 파일들이 assets 폴더에 꼭 있어야 합니다!)
     for(let i=1; i<=5; i++) {
         this.load.image(`test_buddy${i}`, `/assets/test_buddy${i}.png`);
     }
@@ -122,7 +123,7 @@ class GameScene extends Phaser.Scene {
     try {
         const map = this.make.tilemap({ key: 'map' });
 
-        // 🚨 1번 수정사항: Tiled JSON 내부에 적힌 이름에는 '띄어쓰기'가 있으므로 띄어쓰기를 넣어야 합니다.
+        // Tiled JSON 내부에 적힌 띄어쓰기 이름으로 연결
         const tiles1 = map.addTilesetImage('test.1', 'img1');
         const tiles2 = map.addTilesetImage('test.3', 'img2');
         const tiles3 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 005', 'img3');
@@ -131,16 +132,15 @@ class GameScene extends Phaser.Scene {
         const allTiles = [tiles1, tiles2, tiles3, tiles4].filter(t => t !== null);
 
         if (allTiles.length > 0) {
-            // 🚨 2번 수정사항: 한글 이름 대신 번호(0, 1, 2, 3)를 사용합니다.
-            // 최신 7층.js 레이어 구조 기준: 0(타일1), 1(타일5), 2(벽), 3(중간벽)
-            map.createLayer(0, allTiles, 0, 0); 
-            map.createLayer(1, allTiles, 0, 0); 
-            const wallLayer = map.createLayer(2, allTiles, 0, 0); 
-            map.createLayer(3, allTiles, 0, 0); 
-
-            if (wallLayer) {
-                wallLayer.setCollisionByProperty({ collides: true });
-            }
+            // 🔥 무적의 코드: 맵(JSON)에 존재하는 모든 레이어를 자동으로 찾아서 그립니다.
+            map.layers.forEach(layer => {
+                const createdLayer = map.createLayer(layer.name, allTiles, 0, 0);
+                
+                // 레이어 이름에 '벽'이라는 글자가 포함되어 있으면 충돌 속성 부여
+                if (createdLayer && layer.name.includes('벽')) {
+                    createdLayer.setCollisionByProperty({ collides: true });
+                }
+            });
         }
     } catch (e) {
         console.warn("맵을 불러오는 데 실패했습니다. 에셋 경로를 확인하세요.", e);
