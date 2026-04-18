@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { Client } from 'colyseus.js';
 
-// 📊 1조 ~ 11조 전체 팀원 데이터 (기존과 동일하게 유지)
+// 📊 1조 ~ 11조 전체 팀원 데이터
 const PLAYER_DATA = {
   // 1조 only1
   "김민재": { job: "분석자(창의)", character: "test_buddy1" },
@@ -101,13 +101,13 @@ class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    // 💡 문법 오류(.png 위치, 중괄호) 수정 완료
     this.load.image('tiles', '/assets/test.1.png'); 
     this.load.tilemapTiledJSON('map', '/assets/7floor.tmj'); 
     this.load.image('item', '/assets/item.png');
 
     this.load.image('img1', '/assets/test.1.png');
     this.load.image('img2', '/assets/test.3.png');
+    // 실제 파일 이름은 -005, -002 로 읽어옵니다.
     this.load.image('img3', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-005.png');
     this.load.image('img4', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-002.png');
     
@@ -119,26 +119,25 @@ class GameScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor('#2c3e50');
 
-    // 💡 맵 렌더링 로직 추가 (오류 발생 시 멈추지 않도록 try-catch 적용)
     try {
         const map = this.make.tilemap({ key: 'map' });
 
-        // Tiled JSON 내부의 이름과 방금 로드한 img1~4를 연결
+        // 🚨 1번 수정사항: Tiled JSON 내부에 적힌 이름에는 '띄어쓰기'가 있으므로 띄어쓰기를 넣어야 합니다.
         const tiles1 = map.addTilesetImage('test.1', 'img1');
         const tiles2 = map.addTilesetImage('test.3', 'img2');
-        const tiles3 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-005', 'img3');
-        const tiles4 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-002', 'img4');
+        const tiles3 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 005', 'img3');
+        const tiles4 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 002', 'img4');
 
-        // null이 아닌 타일셋들만 모아서 배열로 만듦
         const allTiles = [tiles1, tiles2, tiles3, tiles4].filter(t => t !== null);
 
         if (allTiles.length > 0) {
-            // JSON을 분석했을 때 나온 3개의 레이어를 차례대로 그림
-            map.createLayer('타일 레이어 1', allTiles, 0, 0);
-            const wallLayer = map.createLayer('벽', allTiles, 0, 0);
-            map.createLayer('의자', allTiles, 0, 0);
+            // 🚨 2번 수정사항: 한글 이름 대신 번호(0, 1, 2, 3)를 사용합니다.
+            // 최신 7층.js 레이어 구조 기준: 0(타일1), 1(타일5), 2(벽), 3(중간벽)
+            map.createLayer(0, allTiles, 0, 0); 
+            map.createLayer(1, allTiles, 0, 0); 
+            const wallLayer = map.createLayer(2, allTiles, 0, 0); 
+            map.createLayer(3, allTiles, 0, 0); 
 
-            // 벽 레이어가 있으면 충돌 설정 (추후 활용을 위해)
             if (wallLayer) {
                 wallLayer.setCollisionByProperty({ collides: true });
             }
