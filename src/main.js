@@ -108,8 +108,8 @@ class GameScene extends Phaser.Scene {
 
     this.load.image('img1', '/assets/test.1.png');
     this.load.image('img2', '/assets/test.3.png');
-    this.load.image('img3', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25 005.png');
-    this.load.image('img4', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25 002.png');
+    this.load.image('img3', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-005.png');
+    this.load.image('img4', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-002.png');
     
     for(let i=1; i<=5; i++) {
         this.load.image(`test_buddy${i}`, `/assets/test_buddy${i}.png`);
