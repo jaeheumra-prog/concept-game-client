@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { Client } from 'colyseus.js';
 
-// 📊 1조 ~ 11조 전체 팀원 데이터 (손실 없이 완벽 보존)
+// 📊 1조 ~ 11조 전체 팀원 데이터 (기존과 동일하게 유지)
 const PLAYER_DATA = {
   // 1조 only1
   "김민재": { job: "분석자(창의)", character: "test_buddy1" },
@@ -101,75 +101,64 @@ class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    // ⚠️ TODO: 에셋 404 에러 해결(GitHub 업로드) 후 활성화 필요
+    // 💡 문법 오류(.png 위치, 중괄호) 수정 완료
     this.load.image('tiles', '/assets/test.1.png'); 
-    this.load.tilemapTiledJSON('map', '/assets/my_map.json'); 
+    this.load.tilemapTiledJSON('map', '/assets/7floor.tmj'); 
     this.load.image('item', '/assets/item.png');
-    for(let i=1; i<=5; i++) this.load.image(`test_buddy${i}`, `/assets/test_buddy${i}.png`);
+
+    this.load.image('img1', '/assets/test.1.png');
+    this.load.image('img2', '/assets/test.3.png');
+    this.load.image('img3', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25 005.png');
+    this.load.image('img4', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25 002.png');
+    
+    for(let i=1; i<=5; i++) {
+        this.load.image(`test_buddy${i}`, `/assets/test_buddy${i}.png`);
+    }
   }
 
   create() {
-    /* ---------------------------------------------------------
-       💡 [메모] 시야(Fog of War) 및 맵 로드 일시 중단
-       - 404 에러로 인해 화면이 검게 변하는 현상을 방지하기 위함
-       - 밝은 배경에서 캐릭터 이동이 동기화되는지 우선 확인
-       --------------------------------------------------------- */
     this.cameras.main.setBackgroundColor('#2c3e50');
 
-    // 💡 TODO: 빛 텍스처 생성 로직 (나중에 활성화)
-    /*
-    if (!this.textures.exists('light_mask')) {
-        const canvas = this.textures.createCanvas('light_mask', 256, 256);
-        const ctx = canvas.context;
-        const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-        gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, 256, 256);
-        canvas.refresh();
+    // 💡 맵 렌더링 로직 추가 (오류 발생 시 멈추지 않도록 try-catch 적용)
+    try {
+        const map = this.make.tilemap({ key: 'map' });
+
+        // Tiled JSON 내부의 이름과 방금 로드한 img1~4를 연결
+        const tiles1 = map.addTilesetImage('test.1', 'img1');
+        const tiles2 = map.addTilesetImage('test.3', 'img2');
+        const tiles3 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 005', 'img3');
+        const tiles4 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 002', 'img4');
+
+        // null이 아닌 타일셋들만 모아서 배열로 만듦
+        const allTiles = [tiles1, tiles2, tiles3, tiles4].filter(t => t !== null);
+
+        if (allTiles.length > 0) {
+            // JSON을 분석했을 때 나온 3개의 레이어를 차례대로 그림
+            map.createLayer('타일 레이어 1', allTiles, 0, 0);
+            const wallLayer = map.createLayer('벽', allTiles, 0, 0);
+            map.createLayer('의자', allTiles, 0, 0);
+
+            // 벽 레이어가 있으면 충돌 설정 (추후 활용을 위해)
+            if (wallLayer) {
+                wallLayer.setCollisionByProperty({ collides: true });
+            }
+        }
+    } catch (e) {
+        console.warn("맵을 불러오는 데 실패했습니다. 에셋 경로를 확인하세요.", e);
     }
-    */
 
-    // 💡 TODO: 맵 레이어 생성 (나중에 활성화)
-    /*
-    const map = this.make.tilemap({ key: 'map' });
-    const tileset = map.addTilesetImage('test.1', 'tiles'); 
-    if (tileset) {
-      map.createLayer('바닥', tileset, 0, 0);
-      const wallLayer = map.createLayer('타일 레이어 2', tileset, 0, 0);
-      if (wallLayer) wallLayer.setCollisionByProperty({ collides: true });
-    }
-    */
-
-    // 💡 TODO: Fog of War 레이어 (나중에 활성화)
-    /*
-    this.fog = this.make.renderTexture({ width: 800, height: 600 }, true);
-    this.fog.fill(0x000000, 0.95).setDepth(80);
-    this.lightBrush = this.make.image({ key: 'light_mask' }, false);
-    */
-
-    // 상단 UI: 접속 정보 표시
-    this.scoreText = this.add.text(10, 10, `[ ${this.myInfo.group}모둠 ] 접속 성공 - 이동 테스트 중`, { 
+    // 상단 UI: 접속 정보 및 조율자 전용 가이드
+    let uiText = `[ ${this.myInfo.group}모둠 ] 접속 성공`;
+    if (this.myInfo.character === "test_buddy4") uiText += " (Shift: 위치 바꾸기)";
+    
+    this.scoreText = this.add.text(10, 10, uiText, { 
         font: '20px Arial', fill: '#ffffff', stroke: '#000000', strokeThickness: 3
     }).setScrollFactor(0).setDepth(100);
 
     this.cursors = this.input.keyboard.createCursorKeys();
+    this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
     this.room.onStateChange(() => this.syncPlayers());
-
-    // 💡 TODO: 아이템 수집 및 맵 전환 메시지 리스너 (나중에 활성화)
-    /*
-    this.room.state.listen("itemsCollected", (current) => {
-        this.scoreText.setText(`[ ${this.myInfo.group}모둠 ] 아이템: ${current} / 5`);
-    });
-
-    this.room.onMessage("changeMap", (data) => {
-        if (this.isChangeScene) return;
-        this.isChangeScene = true;
-        alert(data.message);
-        this.scene.restart({ room: this.room, myInfo: this.myInfo });
-    });
-    */
   }
 
   syncPlayers() {
@@ -185,13 +174,6 @@ class GameScene extends Phaser.Scene {
 
         if (sessionId === this.room.sessionId) {
           this.mySprite = sprite;
-          // 💡 TODO: 아이템 충돌 감지 로직 (나중에 활성화)
-          /*
-          this.physics.add.overlap(this.mySprite, this.items, (me, item) => {
-            item.destroy(); 
-            this.room.send("collectItem"); 
-          }, null, this);
-          */
         }
       } else {
         const sprite = this.playerSprites[sessionId];
@@ -207,24 +189,17 @@ class GameScene extends Phaser.Scene {
 
   update() {
     if (!this.room || !this.mySprite) return;
-    
-    // 💡 TODO: 매 프레임 시야 구멍 뚫기 로직 (나중에 활성화)
-    /*
-    if (this.fog) {
-        this.fog.clear().fill(0x000000, 0.95);
-        Object.keys(this.playerSprites).forEach(id => {
-          const sprite = this.playerSprites[id];
-          const vSize = (sprite.texture.key === "test_buddy3") ? 450 : 200;
-          this.lightBrush.setScale(vSize / 256);
-          this.fog.erase(this.lightBrush, sprite.x, sprite.y);
-        });
-    }
-    */
 
     if (this.cursors.left.isDown) this.room.send("move", { dir: "left" });
     else if (this.cursors.right.isDown) this.room.send("move", { dir: "right" });
     if (this.cursors.up.isDown) this.room.send("move", { dir: "up" });
     else if (this.cursors.down.isDown) this.room.send("move", { dir: "down" });
+
+    if (Phaser.Input.Keyboard.JustDown(this.shiftKey)) {
+        if (this.myInfo.character === "test_buddy4") {
+            this.room.send("useSkill");
+        }
+    }
   }
 }
 
