@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { Client } from 'colyseus.js';
 
-// 📊 1조 ~ 11조 전체 팀원 데이터 (손실 없이 유지)
+// 📊 1조 ~ 11조 전체 팀원 데이터 (손실 없이 완벽 보존)
 const PLAYER_DATA = {
   // 1조 only1
   "김민재": { job: "분석자(창의)", character: "test_buddy1" },
@@ -86,6 +86,7 @@ class LoginScene extends Phaser.Scene {
       const playerInfo = PLAYER_DATA[inputName];
       if (!playerInfo) return alert('등록되지 않은 이름입니다!');
 
+      // 💡 joinOptions에 group을 포함시켜 서버에서 조별 분리(filterBy)를 하도록 합니다.
       const joinOptions = { ...playerInfo, group: inputGroup, realName: inputName };
       const client = new Client('wss://concept-game-server.onrender.com');
 
@@ -110,29 +111,29 @@ class GameScene extends Phaser.Scene {
   }
 
   preload() {
+    // 경로 최적화 및 에셋 로드
     this.load.image('tiles', '/assets/test.1.png'); 
     this.load.tilemapTiledJSON('map', '/assets/my_map.json'); 
     this.load.image('item', '/assets/item.png');
 
-    this.load.image('test_buddy1', '/assets/test_buddy1.png');
-    this.load.image('test_buddy2', '/assets/test_buddy2.png');
-    this.load.image('test_buddy3', '/assets/test_buddy3.png');
-    this.load.image('test_buddy4', '/assets/test_buddy4.png');
-    this.load.image('test_buddy5', '/assets/test_buddy5.png');
+    for(let i=1; i<=5; i++) {
+        this.load.image(`test_buddy${i}`, `/assets/test_buddy${i}.png`);
+    }
   }
 
   create() {
-    // 💡 1. 코드로 빛 마스크 텍스처 생성
-    const canvas = this.textures.createCanvas('light_mask', 256, 256);
-    const ctx = canvas.context;
-    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 256, 256);
-    canvas.refresh();
+    // 💡 텍스처 중복 생성 에러 방지 체크
+    if (!this.textures.exists('light_mask')) {
+        const canvas = this.textures.createCanvas('light_mask', 256, 256);
+        const ctx = canvas.context;
+        const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 256, 256);
+        canvas.refresh();
+    }
 
-    // 맵 로드
     const map = this.make.tilemap({ key: 'map' });
     const tileset = map.addTilesetImage('test.1', 'tiles'); 
     if (tileset) {
@@ -141,7 +142,7 @@ class GameScene extends Phaser.Scene {
       if (wallLayer) wallLayer.setCollisionByProperty({ collides: true });
     }
 
-    // 💡 2. Fog of War 안개 레이어 생성
+    // 💡 Fog of War (안개) 설정
     this.fog = this.make.renderTexture({
       width: map.widthInPixels || 800,
       height: map.heightInPixels || 600
@@ -150,10 +151,9 @@ class GameScene extends Phaser.Scene {
     this.fog.setDepth(80); 
 
     this.lightBrush = this.make.image({ key: 'light_mask' }, false);
-
     this.cameras.main.setBackgroundColor('#2c3e50');
 
-    // 아이템 배치
+    // 💡 아이템 배치 (Tiled 오브젝트 레이어 우선 로드)
     this.items = this.physics.add.group();
     const itemLayer = map.getObjectLayer('Items');
     if (itemLayer) {
@@ -162,21 +162,22 @@ class GameScene extends Phaser.Scene {
         item.setOrigin(0, 1).setDepth(50);
       });
     } else {
-      // Tiled 데이터가 없을 경우를 위한 임시 랜덤 배치
       for(let i=0; i<5; i++) {
         this.items.create(Phaser.Math.Between(100, 700), Phaser.Math.Between(100, 500), 'item').setDepth(50);
       }
     }
 
-    this.scoreText = this.add.text(10, 40, `아이템 수집: 0 / 5`, { 
+    // 상단 UI: [모둠 번호] 표시 추가
+    this.scoreText = this.add.text(10, 40, `[ ${this.myInfo.group}모둠 ] 아이템 수집: 0 / 5`, { 
         font: '20px Arial', fill: '#ffff00', stroke: '#000000', strokeThickness: 3
     }).setScrollFactor(0).setDepth(100);
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.room.onStateChange(() => this.syncPlayers());
 
+    // 서버 아이템 상태 연동
     this.room.state.listen("itemsCollected", (current) => {
-        this.scoreText.setText(`아이템 수집: ${current} / 5`);
+        this.scoreText.setText(`[ ${this.myInfo.group}모둠 ] 아이템 수집: ${current} / 5`);
     });
 
     this.room.onMessage("changeMap", (data) => {
@@ -196,7 +197,7 @@ class GameScene extends Phaser.Scene {
         this.playerSprites[sessionId].label = label;
         this.playerSprites[sessionId].label.setDepth(100);
 
-        // 💡 길잡이(test_buddy3)는 시야 범위를 훨씬 넓게 설정
+        // 💡 직업별 시야 차등 (길잡이 특권 적용)
         this.playerSprites[sessionId].visionSize = (player.character === "test_buddy3") ? 450 : 200;
 
         if (sessionId === this.room.sessionId) {
@@ -219,9 +220,9 @@ class GameScene extends Phaser.Scene {
   }
 
   update() {
-    if (!this.room) return;
+    if (!this.room || !this.playerSprites) return;
     
-    // 💡 3. 매 프레임 안개를 다시 칠하고 플레이어 위치 구멍 뚫기
+    // 매 프레임 안개 초기화 및 모든 플레이어 시야 뚫기
     this.fog.clear();
     this.fog.fill(0x000000, 0.95);
 
