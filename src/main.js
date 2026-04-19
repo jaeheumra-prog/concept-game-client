@@ -177,6 +177,8 @@ class GameScene extends Phaser.Scene {
     this.coordSkillTargetId = null;
     this._coordPointerHandler = null;
     this.coordOverlayRoot = null;
+    this.explorerSpeedBuff = 1; // 개척자 속도 버프 배율
+    this.hintText = null; // 분석자 힌트 UI
   }
 
   preload() {
@@ -411,8 +413,11 @@ class GameScene extends Phaser.Scene {
     }
 
     let uiText = `[ ${this.myInfo.group}모둠 ] 접속 성공`;
-    if (this.myInfo.character === "test_buddy4") uiText += " (Shift: 팀원 이동 지정)";
-    if (this.myInfo.character === "test_buddy3") uiText += " (길잡이 시야 활성화)"; // 길잡이 안내 추가
+    if (this.myInfo.job.includes("조율자")) uiText += " (Space: 스왑 / Shift: 지정 이동)";
+    if (this.myInfo.job.includes("길잡이")) uiText += " (상시: 넓은 시야)"; 
+    if (this.myInfo.job.includes("분석자")) uiText += " (Space: 힌트 확인)"; 
+    if (this.myInfo.job.includes("개척자")) uiText += " (Space: 이동 가속)"; 
+    // if (this.myInfo.job.includes("설계자")) uiText += " (Space: 특수 상호작용)"; 
     this._baseHudText = uiText;
 
     this.scoreText = this.add.text(10, 10, uiText, {
@@ -422,7 +427,18 @@ class GameScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESCAPE);
+
+    // 💡 서버 메시지 리스너 등록
+    this.room.onMessage("showHint", (data) => {
+      this.displayHint(data.message);
+    });
+
+    this.room.onMessage("skillUsed", (data) => {
+      // 다른 플레이어가 스킬 썼을 때 알림 (간단히 콘솔 혹은 텍스트)
+      console.log(`[Skill] ${data.name}(${data.job})님이 ${data.skill} 스킬을 사용했습니다!`);
+    });
 
     this.room.onStateChange(() => this.syncPlayers());
     this.syncPlayers(); // 강제 초기 동기화! (이걸 안 하면 움직이기 전까지 캐릭터가 안 보임)
@@ -454,9 +470,9 @@ class GameScene extends Phaser.Scene {
 
         this.playerSprites[sessionId] = sprite;
 
-        const label = this.add.text(player.x, player.y - 15, player.job, { font: '10px Arial', fill: '#ffffff' }).setOrigin(0.5);
+        const label = this.add.text(player.x, player.y - 15, player.realName, { font: '10px Arial', fill: '#ffffff' }).setOrigin(0.5);
         this.playerSprites[sessionId].label = label;
-        this.playerSprites[sessionId].label.setDepth(100);
+        this.playerSprites[sessionId].label.setDepth(91);
 
         if (sessionId === this.room.sessionId) {
           this.mySprite = sprite;
@@ -515,12 +531,29 @@ class GameScene extends Phaser.Scene {
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.shiftKey)) {
-      if (this.myInfo.character === "test_buddy4") {
+      if (this.myInfo.job.includes("조율자")) {
         if (this.coordSkillMode !== 'idle') {
           this.closeCoordinatorSkillFlow();
         } else {
           this.openCoordinatorSkillFlow();
         }
+      }
+    }
+
+    // 💡 Space Key: 직업별 액티브 스킬 실행
+    if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+      const job = this.myInfo.job;
+      if (job.includes("조율자")) {
+        this.room.send("useSkill"); // 서버의 Swap 스킬 호출
+      } else if (job.includes("분석자")) {
+        this.room.send("useAnalystSkill");
+      } else if (job.includes("개척자")) {
+        // 개척자: 자신에게 3초간 속도 1.8배 버프
+        this.explorerSpeedBuff = 1.8;
+        this.room.send("useExplorerSkill");
+        this.time.delayedCall(3000, () => {
+          this.explorerSpeedBuff = 1.0;
+        });
       }
     }
 
@@ -531,7 +564,7 @@ class GameScene extends Phaser.Scene {
 
     let vx = 0;
     let vy = 0;
-    const speed = 250;
+    const speed = 250 * (this.explorerSpeedBuff || 1);
 
     if (this.cursors.left.isDown || this.wasd.A.isDown) vx = -speed;
     else if (this.cursors.right.isDown || this.wasd.D.isDown) vx = speed;
@@ -545,6 +578,23 @@ class GameScene extends Phaser.Scene {
       // 로컬 물리 엔진(벽 충돌 완벽 적용된)의 좌표를 서버에 동기화
       this.room.send("movePos", { x: this.mySprite.x, y: this.mySprite.y });
     }
+  }
+
+  // 💡 분석가 힌트 노출 UI 함수
+  displayHint(message) {
+    if (this.hintText) this.hintText.destroy();
+    
+    this.hintText = this.add.text(400, 500, message, {
+      font: '18px Arial',
+      fill: '#ffff00',
+      backgroundColor: '#000000aa',
+      padding: { x: 10, y: 5 }
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(200);
+
+    // 5초 후 메시지 삭제
+    this.time.delayedCall(5000, () => {
+      if (this.hintText) this.hintText.destroy();
+    });
   }
 }
 
