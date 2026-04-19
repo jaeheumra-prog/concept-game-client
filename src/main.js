@@ -160,9 +160,18 @@ class GameScene extends Phaser.Scene {
 
   preload() {
     this.load.image('tiles', '/assets/test.1.png');
-    this.load.tilemapTiledJSON('map', '/assets/7floor.tmj');
+    this.load.tilemapTiledJSON('map', '/assets/6floor.3.tmj');
     this.load.image('item', '/assets/item.png');
 
+    // Load new map tilesets
+    this.load.image('test.3', '/assets/test.3.png');
+    this.load.image('Floor2', '/assets/Floor2.png');
+    this.load.image('Kakao001', '/assets/KakaoTalk_Photo_2026-04-17-13-18-24-001.png');
+    this.load.image('Kakao002', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-002.png');
+    this.load.image('Kakao004', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-004.png');
+    this.load.image('Kakao005', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-005.png');
+
+    // Fallback load images in case they use old ones
     this.load.image('img1', '/assets/test.1.png');
     this.load.image('img2', '/assets/test.3.png');
     this.load.image('img3', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-005.png');
@@ -293,18 +302,25 @@ class GameScene extends Phaser.Scene {
     try {
       const map = this.make.tilemap({ key: 'map' });
 
+      // Binding new map's tileset names to Phaser textures
+      const wall = map.addTilesetImage('test.3', 'test.3');
+      const floor2 = map.addTilesetImage('Floor2', 'Floor2');
+      const kakao001 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-24-001', 'Kakao001');
+      const kakao002 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 002', 'Kakao002');
+      const kakao004 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 004', 'Kakao004');
+      const kakao005 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 005', 'Kakao005');
+
+      // Fallbacks if they still use old map names internally
       const tiles1 = map.addTilesetImage('test.1', 'img1');
       const tiles2 = map.addTilesetImage('test.3', 'img2');
-      const tiles3 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 005', 'img3');
-      const tiles4 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 002', 'img4');
 
-      const allTiles = [tiles1, tiles2, tiles3, tiles4].filter(t => t !== null);
+      const allTiles = [wall, floor2, kakao001, kakao002, kakao004, kakao005, tiles1, tiles2].filter(t => t !== null);
 
       if (allTiles.length > 0) {
         map.layers.forEach(layer => {
           const createdLayer = map.createLayer(layer.name, allTiles, 0, 0);
 
-          if (createdLayer && layer.name.includes('벽')) {
+          if (createdLayer && (layer.name.includes('벽') || layer.name.toLowerCase().includes('wall'))) {
             createdLayer.setCollisionByProperty({ collides: true });
           }
         });
