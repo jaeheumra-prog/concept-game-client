@@ -4,10 +4,10 @@ import { Client } from 'colyseus.js';
 // Render 배포 서버는 `coordinatorTeleport` 핸들러가 없으면 이동이 반영되지 않습니다.
 // 로컬 테스트: `server` 폴더에서 npm install && npm start 후, HTML에 아래 한 줄을 넣거나
 // 이 상수를 'ws://127.0.0.1:2567' 로 바꿉니다.
-// <script>window.__COLYSEUS_ENDPOINT__ = 'ws://127.0.0.1:2567'</script>
 const COLYSEUS_URL =
-  (typeof window !== 'undefined' && window.__COLYSEUS_ENDPOINT__) ||
-  'wss://concept-game-server.onrender.com';
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+    ? 'ws://localhost:2567'
+    : 'wss://concept-game-server.onrender.com';
 
 // 📊 1조 ~ 11조 전체 팀원 데이터
 const PLAYER_DATA = {
@@ -338,6 +338,7 @@ class GameScene extends Phaser.Scene {
     }).setScrollFactor(0).setDepth(100);
 
     this.cursors = this.input.keyboard.createCursorKeys();
+    this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESCAPE);
 
@@ -397,10 +398,10 @@ class GameScene extends Phaser.Scene {
 
     if (this.coordSkillMode !== 'idle') return;
 
-    if (this.cursors.left.isDown) this.room.send("move", { dir: "left" });
-    else if (this.cursors.right.isDown) this.room.send("move", { dir: "right" });
-    if (this.cursors.up.isDown) this.room.send("move", { dir: "up" });
-    else if (this.cursors.down.isDown) this.room.send("move", { dir: "down" });
+    if (this.cursors.left.isDown || this.wasd.A.isDown) this.room.send("move", { dir: "left" });
+    else if (this.cursors.right.isDown || this.wasd.D.isDown) this.room.send("move", { dir: "right" });
+    if (this.cursors.up.isDown || this.wasd.W.isDown) this.room.send("move", { dir: "up" });
+    else if (this.cursors.down.isDown || this.wasd.S.isDown) this.room.send("move", { dir: "down" });
   }
 }
 
