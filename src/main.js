@@ -159,17 +159,24 @@ class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('tiles', '/assets/test.1.png');
-    this.load.tilemapTiledJSON('map', '/assets/6floor.3.tmj');
+    this.cameras.main.setBackgroundColor('#2c3e50');
+
+    // Load new map JSON - 현재 7층 맵 불러오기로 세팅!
+    this.load.tilemapTiledJSON('map', '/assets/7floor.tmj');
     this.load.image('item', '/assets/item.png');
 
-    // Load new map tilesets
-    this.load.image('test.3', '/assets/test.3.png');
+    // Load 6floor.3.tmj tilesets (원래 쓰던 것들)
+    this.load.image('Wall', '/assets/test.3.png'); // Tiled에서 다시 Wall로 저장됨
     this.load.image('Floor2', '/assets/Floor2.png');
-    this.load.image('Kakao001', '/assets/KakaoTalk_Photo_2026-04-17-13-18-24-001.png');
-    this.load.image('Kakao002', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-002.png');
-    this.load.image('Kakao004', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-004.png');
-    this.load.image('Kakao005', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-005.png');
+    this.load.image('Kakao001', '/assets/KakaoTalk_Photo_2026-04-17-13-18-24 001.png');
+    this.load.image('Kakao002', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25 002.png');
+    this.load.image('Kakao004', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25 004.png');
+    this.load.image('Kakao005', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25 005.png');
+
+    // Load 7floor.tmj tilesets (7층 전용)
+    this.load.image('7flo0r', '/assets/7flo0r.png');
+    this.load.image('6floor101', '/assets/6floor101.png');
+    this.load.image('6floor', '/assets/6floor.png');
 
     // Fallback load images in case they use old ones
     this.load.image('img1', '/assets/test.1.png');
@@ -299,23 +306,36 @@ class GameScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor('#2c3e50');
     this.wallLayers = [];
+    
+    // 시야 가리기용 (Fog of War) 그래픽
+    this.fogGraphics = this.add.graphics().setDepth(95);
 
     try {
       const map = this.make.tilemap({ key: 'map' });
 
-      // Binding new map's tileset names to Phaser textures
-      const wall = map.addTilesetImage('test.3', 'test.3');
+      // Binding 6floor.3 맵의 타일셋들
+      const wall = map.addTilesetImage('Wall', 'Wall');
       const floor2 = map.addTilesetImage('Floor2', 'Floor2');
-      const kakao001 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-24-001', 'Kakao001');
-      const kakao002 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-002', 'Kakao002');
-      const kakao004 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-004', 'Kakao004');
-      const kakao005 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-005', 'Kakao005');
+      const kakao001 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-24 001', 'Kakao001');
+      const kakao002 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 002', 'Kakao002');
+      const kakao004 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 004', 'Kakao004');
+      const kakao005 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 005', 'Kakao005');
+
+      // Binding 7floor 맵의 타일셋들
+      const t7flo0r = map.addTilesetImage('7flo0r', '7flo0r');
+      const t6floor101 = map.addTilesetImage('6floor101', '6floor101');
+      const t6floor = map.addTilesetImage('6floor', '6floor');
 
       // Fallbacks if they still use old map names internally
       const tiles1 = map.addTilesetImage('test.1', 'img1');
       const tiles2 = map.addTilesetImage('test.3', 'img2');
 
-      const allTiles = [wall, floor2, kakao001, kakao002, kakao004, kakao005, tiles1, tiles2].filter(t => t !== null);
+      // 모아놓은 타일들을 거대한 배열로 만들어 줍니다.
+      const allTiles = [
+        wall, floor2, kakao001, kakao002, kakao004, kakao005, 
+        t7flo0r, t6floor101, t6floor,
+        tiles1, tiles2
+      ].filter(t => t !== null);
 
       if (allTiles.length > 0) {
         map.layers.forEach(layer => {
@@ -333,6 +353,7 @@ class GameScene extends Phaser.Scene {
 
     let uiText = `[ ${this.myInfo.group}모둠 ] 접속 성공`;
     if (this.myInfo.character === "test_buddy4") uiText += " (Shift: 팀원 이동 지정)";
+    if (this.myInfo.character === "test_buddy3") uiText += " (길잡이 시야 활성화)"; // 길잡이 안내 추가
     this._baseHudText = uiText;
 
     this.scoreText = this.add.text(10, 10, uiText, {
@@ -394,6 +415,24 @@ class GameScene extends Phaser.Scene {
 
   update() {
     if (!this.room || !this.mySprite) return;
+
+    // 어둠(안개) 그리기 및 내 주변 시야 뚫기
+    if (this.fogGraphics) {
+      this.fogGraphics.clear();
+      this.fogGraphics.fillStyle(0x000000, 0.95);
+      this.fogGraphics.beginPath();
+      // 전체 맵을 덮는 사각형
+      this.fogGraphics.moveTo(0, 0);
+      this.fogGraphics.lineTo(6000, 0);
+      this.fogGraphics.lineTo(6000, 6000);
+      this.fogGraphics.lineTo(0, 6000);
+      this.fogGraphics.lineTo(0, 0);
+
+      // 시야 구멍 뚫기 (시계 반대방향 옵션: true)
+      const vision = this.myInfo.vision || 150;
+      this.fogGraphics.arc(this.mySprite.x, this.mySprite.y, vision, 0, Math.PI * 2, true);
+      this.fogGraphics.fillPath();
+    }
 
     if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
       if (this.coordSkillMode !== 'idle') this.closeCoordinatorSkillFlow();
