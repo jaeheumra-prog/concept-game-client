@@ -343,6 +343,7 @@ class GameScene extends Phaser.Scene {
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESCAPE);
 
     this.room.onStateChange(() => this.syncPlayers());
+    this.syncPlayers(); // 강제 초기 동기화! (이걸 안 하면 움직이기 전까지 캐릭터가 안 보임)
 
     this.events.once('shutdown', () => {
       this.closeCoordinatorSkillFlow();
