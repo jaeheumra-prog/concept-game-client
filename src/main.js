@@ -306,9 +306,17 @@ class GameScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor('#2c3e50');
     this.wallLayers = [];
+    // 시야 가리기용 (Fog of War) 세팅
+    // 맵 전체를 덮는 거대한 까만 사각형
+    this.fogOverlay = this.add.rectangle(0, 0, 6000, 6000, 0x000000, 0.95).setOrigin(0,0).setDepth(95);
+
+    // 구멍을 뚫을 마스크용 그래픽 (화면에 직접 그려지진 않음)
+    this.visionGraphics = this.make.graphics(); 
     
-    // 시야 가리기용 (Fog of War) 그래픽
-    this.fogGraphics = this.add.graphics().setDepth(95);
+    // 마스크 반전 활성화 (BitmapMask는 invertAlpha 속성을 지원합니다!)
+    const fogMask = this.visionGraphics.createBitmapMask();
+    fogMask.invertAlpha = true;
+    this.fogOverlay.setMask(fogMask);
 
     try {
       const map = this.make.tilemap({ key: 'map' });
@@ -416,22 +424,16 @@ class GameScene extends Phaser.Scene {
   update() {
     if (!this.room || !this.mySprite) return;
 
-    // 어둠(안개) 그리기 및 내 주변 시야 뚫기
-    if (this.fogGraphics) {
-      this.fogGraphics.clear();
-      this.fogGraphics.fillStyle(0x000000, 0.95);
-      this.fogGraphics.beginPath();
-      // 전체 맵을 덮는 사각형
-      this.fogGraphics.moveTo(0, 0);
-      this.fogGraphics.lineTo(6000, 0);
-      this.fogGraphics.lineTo(6000, 6000);
-      this.fogGraphics.lineTo(0, 6000);
-      this.fogGraphics.lineTo(0, 0);
+    // 어둠(안개) 그리기 및 내 주변 시야 뚫기 (완벽한 마스크 반전 기법)
+    if (this.mySprite && this.visionGraphics) {
+      this.visionGraphics.clear();
+      this.visionGraphics.fillStyle(0xffffff, 1);
 
-      // 시야 구멍 뚫기 (시계 반대방향 옵션: true)
-      const vision = this.myInfo.vision || 150;
-      this.fogGraphics.arc(this.mySprite.x, this.mySprite.y, vision, 0, Math.PI * 2, true);
-      this.fogGraphics.fillPath();
+      // 길잡이면 크게, 아니면 작게 시야 반경 설정
+      const myVision = this.myInfo.vision || 150;
+      
+      // 내 중심만 뻥 뚫기
+      this.visionGraphics.fillCircle(this.mySprite.x, this.mySprite.y, myVision);
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
