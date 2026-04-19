@@ -88,6 +88,27 @@ const PLAYER_DATA = {
   }
 };
 
+// 학생분들이 업로드한 파일명 포맷: "[조번호]조 [조이름]_[이름]_[직업].png"
+const GROUP_NAMES = {
+  1: "only1", 2: "plot twist", 3: "세얼간이", 4: "일단해보조",
+  5: "HighFive", 6: "허니", 7: "마감직전 오캐스트라", 8: "일단틀어줘",
+  9: "제작소", 10: "카트라이더", 11: "최예"
+};
+
+// 스크립트가 실행될 때 모든 캐릭터 키를 test_buddy 대신 파일명 기반의 고유한 키로 덮어씁니다.
+Object.keys(PLAYER_DATA).forEach(groupNumber => {
+  const gName = GROUP_NAMES[groupNumber];
+  if (!gName) return; // 테스터(999)는 스킵
+
+  const members = PLAYER_DATA[groupNumber];
+  Object.keys(members).forEach(realName => {
+    const jobBase = members[realName].job.split('(')[0];
+    const filename = `${groupNumber}조 ${gName}_${realName}_${jobBase}.png`;
+    // 고유 키: 캐릭터 이미지를 Phaser에서 꺼낼 때 사용
+    members[realName].character = filename; 
+  });
+});
+
 class LoginScene extends Phaser.Scene {
   constructor() { super({ key: 'LoginScene' }); }
   create() {
@@ -181,12 +202,22 @@ class GameScene extends Phaser.Scene {
     // Fallback load images in case they use old ones
     this.load.image('img1', '/assets/test.1.png');
     this.load.image('img2', '/assets/test.3.png');
-    this.load.image('img3', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-005.png');
-    this.load.image('img4', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-002.png');
+    this.load.image('test_buddy1', '/assets/test_buddy1.png');
+    this.load.image('test_buddy2', '/assets/test_buddy2.png');
+    this.load.image('test_buddy3', '/assets/test_buddy3.png');
+    this.load.image('test_buddy4', '/assets/test_buddy4.png');
+    this.load.image('test_buddy5', '/assets/test_buddy5.png');
 
-    for (let i = 1; i <= 5; i++) {
-      this.load.image(`test_buddy${i}`, `/assets/test_buddy${i}.png`);
-    }
+    // 🌟 방금 업로드된 모든 조원들의 캐릭터 이미지(PNG)를 동적으로 로드합니다 🌟
+    Object.keys(PLAYER_DATA).forEach(groupNumber => {
+      const gName = GROUP_NAMES[groupNumber];
+      if (!gName) return;
+      const members = PLAYER_DATA[groupNumber];
+      Object.keys(members).forEach(realName => {
+        const filename = members[realName].character; // 방금 위에서 덮어쓴 그 파일명
+        this.load.image(filename, `/assets/${filename}`);
+      });
+    });
   }
 
   ensureCoordOverlay() {
@@ -409,7 +440,12 @@ class GameScene extends Phaser.Scene {
     this.room.state.players.forEach((player, sessionId) => {
       if (!this.playerSprites[sessionId]) {
         const sprite = this.physics.add.image(player.x, player.y, player.character);
-        sprite.setScale(0.8).setDepth(90);
+        sprite.setScale(0.2).setDepth(90);
+
+        // 💡 히트박스를 캐릭터 몸통에 맞는 '원형'으로 변경 (더 매끄러운 이동)
+        // 원의 반지름을 이미지 너비의 약 40%로 설정하여 발밑 위주로 충돌 판정
+        const radius = sprite.width * 0.35;
+        sprite.setCircle(radius, sprite.width * 0.15, sprite.height * 0.15);
         
         // 4. 캐릭터와 벽의 충돌 감지 (요청하신 코드 연동)
         this.wallLayers.forEach(wallLayer => {
@@ -418,7 +454,7 @@ class GameScene extends Phaser.Scene {
 
         this.playerSprites[sessionId] = sprite;
 
-        const label = this.add.text(player.x, player.y - 45, player.job, { font: '14px Arial', fill: '#ffffff' }).setOrigin(0.5);
+        const label = this.add.text(player.x, player.y - 15, player.job, { font: '10px Arial', fill: '#ffffff' }).setOrigin(0.5);
         this.playerSprites[sessionId].label = label;
         this.playerSprites[sessionId].label.setDepth(100);
 
@@ -438,7 +474,7 @@ class GameScene extends Phaser.Scene {
         }
         if (sprite.label) {
           sprite.label.x = player.x;
-          sprite.label.y = player.y - 45;
+          sprite.label.y = player.y - 15;
         }
       }
     });
