@@ -306,17 +306,19 @@ class GameScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor('#2c3e50');
     this.wallLayers = [];
-    // 시야 가리기용 (Fog of War) 세팅
-    // 맵 전체를 덮는 거대한 까만 사각형
-    this.fogOverlay = this.add.rectangle(0, 0, 6000, 6000, 0x000000, 0.95).setOrigin(0,0).setDepth(95);
+    // 시야 가리기용 (Fog of War) 세팅: 가장 안정적인 RenderTexture 사용
+    this.fogRT = this.add.renderTexture(0, 0, 8000, 8000).setDepth(95);
 
-    // 구멍을 뚫을 마스크용 그래픽 (화면에 직접 그려지진 않음)
-    this.visionGraphics = this.make.graphics(); 
-    
-    // 마스크 반전 활성화 (BitmapMask는 invertAlpha 속성을 지원합니다!)
-    const fogMask = this.visionGraphics.createBitmapMask();
-    fogMask.invertAlpha = true;
-    this.fogOverlay.setMask(fogMask);
+    // 시야를 뚫을 투명 도형 텍스처 (하얀색 원) 미리 생성
+    const holeGraphics = this.make.graphics();
+    holeGraphics.fillStyle(0xffffff, 1);
+    holeGraphics.fillCircle(300, 300, 300); // 최대 반지름 300 지원
+    holeGraphics.generateTexture('visionHole', 600, 600);
+    holeGraphics.destroy();
+
+    // 뚫어버릴 마스킹용 도장(Stamp) 이미지 (화면에 보이진 않지만 RenderTexture에 찍을 용도)
+    this.visionStamp = this.make.image({ x: 0, y: 0, key: 'visionHole', add: false });
+    this.visionStamp.setBlendMode(Phaser.BlendModes.ERASE); // 투명하게 지우는 혼합 모드
 
     try {
       const map = this.make.tilemap({ key: 'map' });
@@ -424,16 +426,18 @@ class GameScene extends Phaser.Scene {
   update() {
     if (!this.room || !this.mySprite) return;
 
-    // 어둠(안개) 그리기 및 내 주변 시야 뚫기 (완벽한 마스크 반전 기법)
-    if (this.mySprite && this.visionGraphics) {
-      this.visionGraphics.clear();
-      this.visionGraphics.fillStyle(0xffffff, 1);
+    // 어둠(안개) 그리기 및 내 주변 시야 뚫기 (RenderTexture + ERASE 기법)
+    if (this.fogRT && this.mySprite) {
+      this.fogRT.clear(); // 전체를 비움
+      this.fogRT.fill(0x000000, 0.95); // 까만색으로 가득 채움
 
-      // 길잡이면 크게, 아니면 작게 시야 반경 설정
       const myVision = this.myInfo.vision || 150;
+      const scale = myVision / 300; // 기준 반경 300대비 비율 구하기
       
-      // 내 중심만 뻥 뚫기
-      this.visionGraphics.fillCircle(this.mySprite.x, this.mySprite.y, myVision);
+      // 도장(Stamp)의 위치와 크기를 업데이트하고 RenderTexture에 찍기
+      this.visionStamp.setScale(scale);
+      this.visionStamp.setPosition(this.mySprite.x, this.mySprite.y);
+      this.fogRT.draw(this.visionStamp);
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
