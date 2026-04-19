@@ -298,6 +298,7 @@ class GameScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#2c3e50');
+    this.wallLayers = [];
 
     try {
       const map = this.make.tilemap({ key: 'map' });
@@ -322,6 +323,7 @@ class GameScene extends Phaser.Scene {
 
           if (createdLayer && (layer.name.includes('벽') || layer.name.toLowerCase().includes('wall'))) {
             createdLayer.setCollisionByProperty({ collides: true });
+            this.wallLayers.push(createdLayer);
           }
         });
       }
@@ -359,6 +361,12 @@ class GameScene extends Phaser.Scene {
       if (!this.playerSprites[sessionId]) {
         const sprite = this.physics.add.image(player.x, player.y, player.character);
         sprite.setScale(0.8).setDepth(90);
+        
+        // 4. 캐릭터와 벽의 충돌 감지 (요청하신 코드 연동)
+        this.wallLayers.forEach(wallLayer => {
+          this.physics.add.collider(sprite, wallLayer);
+        });
+
         this.playerSprites[sessionId] = sprite;
 
         const label = this.add.text(player.x, player.y - 45, player.job, { font: '14px Arial', fill: '#ffffff' }).setOrigin(0.5);
@@ -370,8 +378,12 @@ class GameScene extends Phaser.Scene {
         }
       } else {
         const sprite = this.playerSprites[sessionId];
-        sprite.x = player.x;
-        sprite.y = player.y;
+        
+        // 내 캐릭터가 아닐 때만 서버 좌표를 그대로 덮어씀 (나는 로컬 물리 엔진을 믿음!)
+        if (sessionId !== this.room.sessionId) {
+          sprite.x = player.x;
+          sprite.y = player.y;
+        }
         if (sprite.label) {
           sprite.label.x = player.x;
           sprite.label.y = player.y - 45;
@@ -397,12 +409,27 @@ class GameScene extends Phaser.Scene {
       }
     }
 
-    if (this.coordSkillMode !== 'idle') return;
+    if (this.coordSkillMode !== 'idle') {
+      this.mySprite.setVelocity(0, 0); // 스킬 모드일 땐 멈춤
+      return;
+    }
 
-    if (this.cursors.left.isDown || this.wasd.A.isDown) this.room.send("move", { dir: "left" });
-    else if (this.cursors.right.isDown || this.wasd.D.isDown) this.room.send("move", { dir: "right" });
-    if (this.cursors.up.isDown || this.wasd.W.isDown) this.room.send("move", { dir: "up" });
-    else if (this.cursors.down.isDown || this.wasd.S.isDown) this.room.send("move", { dir: "down" });
+    let vx = 0;
+    let vy = 0;
+    const speed = 250;
+
+    if (this.cursors.left.isDown || this.wasd.A.isDown) vx = -speed;
+    else if (this.cursors.right.isDown || this.wasd.D.isDown) vx = speed;
+
+    if (this.cursors.up.isDown || this.wasd.W.isDown) vy = -speed;
+    else if (this.cursors.down.isDown || this.wasd.S.isDown) vy = speed;
+
+    this.mySprite.setVelocity(vx, vy);
+
+    if (vx !== 0 || vy !== 0) {
+      // 로컬 물리 엔진(벽 충돌 완벽 적용된)의 좌표를 서버에 동기화
+      this.room.send("movePos", { x: this.mySprite.x, y: this.mySprite.y });
+    }
   }
 }
 
