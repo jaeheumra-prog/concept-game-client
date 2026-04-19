@@ -306,22 +306,25 @@ class GameScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor('#2c3e50');
     this.wallLayers = [];
-    // 시야 가리기용 (Fog of War) 세팅: 가장 안정적인 RenderTexture 사용
-    this.fogRT = this.add.renderTexture(0, 0, 8000, 8000).setDepth(95);
-
-    // 시야를 뚫을 투명 도형 텍스처 (하얀색 원) 미리 생성
-    const holeGraphics = this.make.graphics();
-    holeGraphics.fillStyle(0xffffff, 1);
-    holeGraphics.fillCircle(300, 300, 300); // 최대 반지름 300 지원
-    holeGraphics.generateTexture('visionHole', 600, 600);
-    holeGraphics.destroy();
-
-    // 뚫어버릴 마스킹용 도장(Stamp) 이미지 (화면에 보이진 않지만 RenderTexture에 찍을 용도)
-    this.visionStamp = this.make.image({ x: 0, y: 0, key: 'visionHole', add: false });
-    this.visionStamp.setBlendMode(Phaser.BlendModes.ERASE); // 투명하게 지우는 혼합 모드
+    // 시야 가리기용 (Fog of War) 세팅: Phaser 4 전용 (Canvas API 우회 기법)
+    const cw = this.cameras.main.width;
+    const ch = this.cameras.main.height;
+    
+    // 네이티브 캔버스 텍스처를 생성하여 완벽히 호환되게 만듬
+    this.fogCanvas = this.textures.createCanvas('fogTex', cw, ch);
+    
+    // 생성한 텍스처를 화면 고정 이미지로 덮음
+    this.fogImage = this.add.image(0, 0, 'fogTex')
+      .setOrigin(0,0)
+      .setDepth(95)
+      .setScrollFactor(0);
 
     try {
       const map = this.make.tilemap({ key: 'map' });
+      
+      // 카메라와 캐릭터가 맵 밖(회색 영역)으로 나가지 않도록 맵 크기만큼 제한 설정
+      this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+      this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
 
       // Binding 6floor.3 맵의 타일셋들
       const wall = map.addTilesetImage('Wall', 'Wall');
@@ -351,8 +354,23 @@ class GameScene extends Phaser.Scene {
         map.layers.forEach(layer => {
           const createdLayer = map.createLayer(layer.name, allTiles, 0, 0);
 
-          if (createdLayer && (layer.name.includes('벽') || layer.name.toLowerCase().includes('wall'))) {
-            createdLayer.setCollisionByProperty({ collides: true });
+          // 레이어 이름이 벽, wall, objective 중 하나이거나, 레이어 자체 속성에 collides: true 가 있는지 확인
+          let isWall = layer.name.includes('벽') || 
+                       layer.name.toLowerCase().includes('wall') || 
+                       layer.name.toLowerCase() === 'objective';
+          
+          if (!isWall && layer.properties) {
+            if (Array.isArray(layer.properties)) {
+              if (layer.properties.find(p => p.name === 'collides' && p.value === true)) isWall = true;
+            } else if (layer.properties.collides === true) {
+              isWall = true;
+            }
+          }
+
+          if (createdLayer && isWall) {
+            // Tiled에서 설정한 'collides' 속성이 타일이 아닌 레이어 전체에 걸려있으므로, 
+            // 빈 공간(-1)을 제외한 배치된 모든 타일들을 강제 충돌 물리 벽으로 지정
+            createdLayer.setCollisionByExclusion([-1]); 
             this.wallLayers.push(createdLayer);
           }
         });
@@ -406,6 +424,9 @@ class GameScene extends Phaser.Scene {
 
         if (sessionId === this.room.sessionId) {
           this.mySprite = sprite;
+          // 캐릭터가 생성된 직후, 카메라가 내 캐릭터를 졸졸 따라다니게 설정 (맵 전체 이동 가능)
+          this.cameras.main.startFollow(this.mySprite, true, 0.1, 0.1);
+          this.mySprite.setCollideWorldBounds(true); // 맵 끝에 부딪히면 멈춤
         }
       } else {
         const sprite = this.playerSprites[sessionId];
@@ -426,18 +447,31 @@ class GameScene extends Phaser.Scene {
   update() {
     if (!this.room || !this.mySprite) return;
 
-    // 어둠(안개) 그리기 및 내 주변 시야 뚫기 (RenderTexture + ERASE 기법)
-    if (this.fogRT && this.mySprite) {
-      this.fogRT.clear(); // 전체를 비움
-      this.fogRT.fill(0x000000, 0.95); // 까만색으로 가득 채움
+    // 어둠(안개) 그리기 및 내 주변 시야 뚫기 (웹 네이티브 Canvas 기법)
+    if (this.fogCanvas && this.mySprite) {
+      const ctx = this.fogCanvas.context;
+      const w = this.fogCanvas.width;
+      const h = this.fogCanvas.height;
 
+      // 1. 도화지 초기화 후 전체 까맣게 칠하기
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(0,0,0,0.95)';
+      ctx.fillRect(0, 0, w, h);
+
+      // 2. 화면 상의 플레이어 위치 계산
+      const screenX = this.mySprite.x - this.cameras.main.scrollX;
+      const screenY = this.mySprite.y - this.cameras.main.scrollY;
       const myVision = this.myInfo.vision || 150;
-      const scale = myVision / 300; // 기준 반경 300대비 비율 구하기
+
+      // 3. 지우개(destination-out) 모드로 원형 뚫기
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, myVision, 0, Math.PI * 2);
+      ctx.fill();
       
-      // 도장(Stamp)의 위치와 크기를 업데이트하고 RenderTexture에 찍기
-      this.visionStamp.setScale(scale);
-      this.visionStamp.setPosition(this.mySprite.x, this.mySprite.y);
-      this.fogRT.draw(this.visionStamp);
+      // 상태 원상복구 및 GPU 텍스처 업데이트
+      ctx.globalCompositeOperation = 'source-over';
+      this.fogCanvas.refresh();
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
