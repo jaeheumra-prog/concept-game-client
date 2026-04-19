@@ -306,9 +306,9 @@ class GameScene extends Phaser.Scene {
       const wall = map.addTilesetImage('test.3', 'test.3');
       const floor2 = map.addTilesetImage('Floor2', 'Floor2');
       const kakao001 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-24-001', 'Kakao001');
-      const kakao002 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 002', 'Kakao002');
-      const kakao004 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 004', 'Kakao004');
-      const kakao005 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 005', 'Kakao005');
+      const kakao002 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-002', 'Kakao002');
+      const kakao004 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-004', 'Kakao004');
+      const kakao005 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-005', 'Kakao005');
 
       // Fallbacks if they still use old map names internally
       const tiles1 = map.addTilesetImage('test.1', 'img1');
