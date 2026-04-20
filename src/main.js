@@ -1,146 +1,159 @@
-
 import * as Phaser from 'phaser';
 import { Client } from 'colyseus.js';
 
-// Render 배포 서버는 `coordinatorTeleport` 핸들러가 없으면 이동이 반영되지 않습니다.
-// 로컬 테스트: `server` 폴더에서 npm install && npm start 후, HTML에 아래 한 줄을 넣거나
-// 이 상수를 'ws://127.0.0.1:2567' 로 바꿉니다.
 const COLYSEUS_URL =
-  (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+  (typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname))
     ? 'ws://localhost:2567'
     : 'wss://concept-game-server.onrender.com';
 
-// 📊 1조 ~ 11조 전체 팀원 데이터
-const PLAYER_DATA = {
-  1: {
-    "김민재": { job: "분석자(창의)", character: "test_buddy1" },
-    "박채연": { job: "개척자(성실)", character: "test_buddy2" },
-    "손유정": { job: "길잡이(외향)", character: "test_buddy3" },
-    "이승환": { job: "조율자(협력)", character: "test_buddy4" },
-    "이연재": { job: "설계자(신경)", character: "test_buddy5" }
+const ITEM_OBJECT_IMAGES = [
+  'itemObject01',
+  'itemObject02',
+  'itemObject03',
+  'itemObject04',
+  'itemObject05',
+  'itemObject06',
+  'itemObject07',
+  'itemObject08',
+];
+
+const ROLE_INFO = {
+  navigator: {
+    job: '길잡이',
+    fileRole: '길잡이',
+    color: 0x66e2ff,
+    vision: 330,
+    skill: '넓은 시야',
+    help: '항상 넓은 횃불 시야로 숨은 길을 확인합니다.',
   },
-  2: {
-    "윤현근": { job: "분석자(창의)", character: "test_buddy1" },
-    "심나이": { job: "개척자(성실)", character: "test_buddy2" },
-    "차시훈": { job: "길잡이(외향)", character: "test_buddy3" },
-    "이율": { job: "조율자(협력)", character: "test_buddy4" },
-    "남윤주": { job: "설계자(신경)", character: "test_buddy5" }
+  analyst: {
+    job: '분석가',
+    fileRole: '분석자',
+    color: 0xffd166,
+    vision: 160,
+    skill: '힌트 해석',
+    help: 'Space: 퍼즐 힌트를 팀 전체에 공유합니다.',
   },
-  3: {
-    "안비비안": { job: "분석자(창의)", character: "test_buddy1" },
-    "이택준": { job: "개척자(성실)", character: "test_buddy2" },
-    "송수현": { job: "길잡이(외향)", character: "test_buddy3" },
-    "김찬영": { job: "조율자(협력)", character: "test_buddy4" }
+  supporter: {
+    job: '개척자',
+    fileRole: '개척자',
+    color: 0xff6b6b,
+    vision: 155,
+    skill: '장애물 돌파',
+    help: 'Space: 잠깐 이동 속도가 증가합니다.',
   },
-  4: {
-    "김가윤": { job: "분석자(창의)", character: "test_buddy1" },
-    "김수지": { job: "개척자(성실)", character: "test_buddy2" },
-    "김재현": { job: "길잡이(외향)", character: "test_buddy3" },
-    "이용은": { job: "조율자(협력)", character: "test_buddy4" },
-    "현동건": { job: "설계자(신경)", character: "test_buddy5" }
+  specialist: {
+    job: '조율자',
+    fileRole: '조율자',
+    color: 0xa78bfa,
+    vision: 155,
+    skill: '위치 조율',
+    help: 'Space: 가까운 팀원과 위치 교환, Shift: 팀원 지정 이동.',
   },
-  5: {
-    "라재흠": { job: "분석자(창의)", character: "test_buddy1" },
-    "이정훈": { job: "개척자(성실)", character: "test_buddy2" },
-    "이지원": { job: "길잡이(외향)", character: "test_buddy3" },
-    "홍원준": { job: "조율자(협력)", character: "test_buddy4" }
+  optimist: {
+    job: '설계자',
+    fileRole: '설계자',
+    color: 0x7dff9a,
+    vision: 155,
+    skill: '구조 설계',
+    help: '끊어진 길, 급류, 사다리 구간을 복구합니다.',
   },
-  6: {
-    "석민정": { job: "분석자(창의)", character: "test_buddy1" },
-    "손채빈": { job: "개척자(성실)", character: "test_buddy2" },
-    "안은기": { job: "길잡이(외향)", character: "test_buddy3" },
-    "홍석준": { job: "조율자(협력)", character: "test_buddy4" }
-  },
-  7: {
-    "민승기": { job: "분석자(창의)", character: "test_buddy1" },
-    "하윤채": { job: "개척자(성실)", character: "test_buddy2" },
-    "강민서": { job: "길잡이(외향)", character: "test_buddy3" },
-    "최재석": { job: "조율자(협력)", character: "test_buddy4" }
-  },
-  8: {
-    "김유찬": { job: "분석자(창의)", character: "test_buddy1" },
-    "박승훈": { job: "개척자(성실)", character: "test_buddy2" },
-    "박재현": { job: "길잡이(외향)", character: "test_buddy3" },
-    "배지우": { job: "조율자(협력)", character: "test_buddy4" }
-  },
-  9: {
-    "김담희": { job: "분석자(창의)", character: "test_buddy1" },
-    "이기서": { job: "개척자(성실)", character: "test_buddy2" },
-    "장윤서": { job: "길잡이(외향)", character: "test_buddy3" },
-    "박민우": { job: "조율자(협력)", character: "test_buddy4" },
-    "박지연": { job: "설계자(신경)", character: "test_buddy5" }
-  },
-  10: {
-    "설진": { job: "분석자(창의)", character: "test_buddy1" },
-    "장원우": { job: "개척자(성실)", character: "test_buddy2" },
-    "이지민": { job: "길잡이(외향)", character: "test_buddy3" },
-    "이지훈": { job: "조율자(협력)", character: "test_buddy4" },
-    "김태성": { job: "설계자(신경)", character: "test_buddy5" }
-  },
-  11: {
-    "김수현": { job: "분석자(창의)", character: "test_buddy1" },
-    "이성주": { job: "개척자(성실)", character: "test_buddy2" },
-    "최시현": { job: "길잡이(외향)", character: "test_buddy3" },
-    "이승회": { job: "조율자(협력)", character: "test_buddy4" },
-    "황유주": { job: "설계자(신경)", character: "test_buddy5" }
-  },
-  999: {
-    "테스터": { job: "조율자", character: "test_buddy4" }
-  }
 };
 
-// 학생분들이 업로드한 파일명 포맷: "[조번호]조 [조이름]_[이름]_[직업].png"
-const GROUP_NAMES = {
-  1: "only1", 2: "plot twist", 3: "세얼간이", 4: "일단해보조",
-  5: "HighFive", 6: "허니", 7: "마감직전 오캐스트라", 8: "일단틀어줘",
-  9: "제작소", 10: "카트라이더", 11: "최예"
+const GROUPS = {
+  1: { name: 'only1', members: { '김민재': 'analyst', '박채연': 'supporter', '손유정': 'navigator', '이승환': 'specialist', '이연재': 'optimist' } },
+  2: { name: 'plot twist', members: { '남윤주': 'optimist', '심나이': 'supporter', '윤현근': 'analyst', '이율': 'specialist', '차시훈': 'navigator' } },
+  3: { name: '세얼간이', members: { '김찬영': 'specialist', '송수현': 'navigator', '안비비안': 'analyst', '이택준': 'supporter' } },
+  4: { name: '일단해보조', members: { '김가윤': 'analyst', '김수지': 'supporter', '김재현': 'navigator', '이용은': 'specialist', '현동건': 'optimist' } },
+  5: { name: 'HighFive', members: { '라재흠': 'analyst', '이정훈': 'supporter', '이지원': 'navigator', '홍원준': 'specialist' } },
+  6: { name: '허니', members: { '석민정': 'analyst', '손채빈': 'supporter', '안은기': 'navigator', '홍석준': 'specialist' } },
+  7: { name: '마감직전 오캐스트라', members: { '강민서': 'navigator', '민승기': 'analyst', '최재석': 'specialist', '하윤채': 'supporter' } },
+  8: { name: '일단틀어줘', members: { '김유찬': 'analyst', '박승훈': 'supporter', '박재현': 'navigator', '배지우': 'specialist' } },
+  9: { name: '제작소', members: { '김담희': 'analyst', '박민우': 'specialist', '박지연': 'optimist', '이기서': 'supporter', '장윤서': 'navigator' } },
+  10: { name: '카트라이더', members: { '김태성': 'optimist', '설진': 'analyst', '이지민': 'navigator', '이지훈': 'specialist', '장원우': 'supporter' } },
+  11: { name: '최예', members: { '김수현': 'analyst', '이성주': 'supporter', '이승회': 'specialist', '최시현': 'navigator', '황유주': 'optimist' } },
 };
 
-// 스크립트가 실행될 때 모든 캐릭터 키를 test_buddy 대신 파일명 기반의 고유한 키로 덮어씁니다.
-Object.keys(PLAYER_DATA).forEach(groupNumber => {
-  const gName = GROUP_NAMES[groupNumber];
-  if (!gName) return; // 테스터(999)는 스킵
+const PLAYER_DATA = buildPlayerData();
+PLAYER_DATA[999] = {
+  tester: {
+    job: '조율자',
+    roleKey: 'specialist',
+    character: 'test_buddy4',
+    vision: ROLE_INFO.specialist.vision,
+    realName: 'tester',
+  },
+};
 
-  const members = PLAYER_DATA[groupNumber];
-  Object.keys(members).forEach(realName => {
-    const jobBase = members[realName].job.split('(')[0];
-    const filename = `${groupNumber}조 ${gName}_${realName}_${jobBase}.png`;
-    // 고유 키: 캐릭터 이미지를 Phaser에서 꺼낼 때 사용
-    members[realName].character = filename;
+const ROOMS = [
+  { id: 'r1_bridge', floor: '7F', no: 1, title: '끊어진 다리', type: 'bridge', roles: ['optimist'], roleLabel: '설계자', itemName: '!', x: 115, y: 155, description: '설계자가 다리를 놓아야 아이템 획득' },
+  { id: 'r2_puzzle', floor: '7F', no: 2, title: '분석 퍼즐', type: 'puzzle', roles: ['analyst'], roleLabel: '분석가', itemName: '감자 고추 말차 딸기 케이크', x: 315, y: 155, description: '분석가가 힌트를 읽고 퍼즐 해제' },
+  { id: 'r3_wall', floor: '7F', no: 3, title: '봉쇄 벽', type: 'wall', roles: ['supporter'], roleLabel: '개척자', itemName: '바퀴', x: 515, y: 155, description: '개척자가 벽을 부수고 통로 개방' },
+  { id: 'r4_maze', floor: '7F', no: 4, title: '어둠 미로', type: 'torch', roles: ['supporter'], roleLabel: '개척자', itemName: '미생물', x: 715, y: 155, description: '횃불을 밝혀 미로 돌파' },
+  { id: 'r5_safe', floor: '7F', no: 5, title: '분리 금고', type: 'safe', roles: ['specialist'], roleLabel: '조율자', itemName: '조이스틱', x: 915, y: 155, plates: [{ x: 875, y: 115 }, { x: 955, y: 195 }], description: '두 방의 발판을 맞춘 뒤 금고 개방' },
+  { id: 'r6_quiz', floor: '7F', no: 6, title: '넌센스 퀴즈', type: 'puzzle', roles: ['analyst'], roleLabel: '분석가', itemName: '찰흙', x: 115, y: 435, description: '힌트 조합으로 답을 찾아 해제' },
+  { id: 'r7_debris', floor: '7F', no: 7, title: '낙하 잔해', type: 'wall', roles: ['supporter'], roleLabel: '개척자', itemName: '레이싱카', x: 315, y: 435, description: '떨어진 구조물을 파괴' },
+  { id: 'r8_engine', floor: '6F', no: 8, title: '동력 장치', type: 'puzzle', roles: ['analyst'], roleLabel: '분석가', itemName: '향수', x: 515, y: 435, description: '과부하 장치의 퍼즐을 해제' },
+  { id: 'r9_glass', floor: '6F', no: 9, title: '유리 다리', type: 'glass', roles: ['navigator'], roleLabel: '길잡이', itemName: 'vlog', x: 715, y: 435, description: '길잡이가 안전 발판을 밝혀 이동' },
+  { id: 'r10_sensor', floor: '6F', no: 10, title: '중량 센서', type: 'sensor', roles: ['specialist'], roleLabel: '조율자', itemName: '찢어진 종이 조각', x: 915, y: 435, plates: [{ x: 875, y: 395 }, { x: 955, y: 475 }], description: '두 발판을 동시에 눌러 문 개방' },
+  { id: 'r11_buried', floor: '6F', no: 11, title: '매몰 금고', type: 'buried', roles: ['supporter', 'analyst'], roleLabel: '개척자 또는 분석가', itemName: '거울', x: 115, y: 715, description: '암석 파괴 후 금고 해제' },
+  { id: 'r12_waterway', floor: '6F', no: 12, title: '급류 수로', type: 'waterway', roles: ['optimist'], roleLabel: '설계자', itemName: '음표', x: 315, y: 715, description: '차단벽을 설계해 물길 우회' },
+  { id: 'r13_belt', floor: '6F', no: 13, title: '컨베이어 벨트', type: 'belt', roles: ['specialist'], roleLabel: '조율자', itemName: '시계', x: 515, y: 715, description: '팀원을 안전 구역으로 이동' },
+  { id: 'r14_ladder', floor: '6F', no: 14, title: '부서진 사다리', type: 'ladder', roles: ['optimist'], roleLabel: '설계자', itemName: '곰', x: 715, y: 715, description: '수직 통로를 수리' },
+  { id: 'r15_laser', floor: '6F', no: 15, title: '레이저 복도', type: 'laser', roles: ['analyst'], roleLabel: '분석가', itemName: 'dance', x: 915, y: 715, description: '레이저 패턴 퍼즐 정지' },
+];
+
+const ROOM_BY_ID = Object.fromEntries(ROOMS.map((room) => [room.id, room]));
+
+function buildPlayerData() {
+  const data = {};
+  Object.entries(GROUPS).forEach(([groupNumber, group]) => {
+    data[groupNumber] = {};
+    Object.entries(group.members).forEach(([realName, roleKey]) => {
+      const role = ROLE_INFO[roleKey];
+      data[groupNumber][realName] = {
+        job: role.job,
+        roleKey,
+        character: `${groupNumber}조 ${group.name}_${realName}_${role.fileRole}.png`,
+        vision: role.vision,
+        realName,
+      };
+    });
   });
-});
+  return data;
+}
 
 class LoginScene extends Phaser.Scene {
-  constructor() { super({ key: 'LoginScene' }); }
+  constructor() {
+    super({ key: 'LoginScene' });
+  }
+
   create() {
     const ui = document.getElementById('login-ui');
     const nameInput = document.getElementById('name-input');
     const groupInput = document.getElementById('group-input');
     const jobDisplay = document.getElementById('job-display');
     ui.style.display = 'flex';
+    nameInput.placeholder = '이름을 입력하세요';
+    groupInput.placeholder = '조 번호를 입력하세요';
+    jobDisplay.textContent = '직업: 이름과 조를 입력하면 표시됩니다';
+    document.querySelector('#login-ui h1').textContent = 'Concept Room: 어둠의 연구동';
+    document.getElementById('login-button').textContent = '게임 접속';
 
     const updateJobDisplay = () => {
       const inputName = nameInput.value.trim();
       const groupValue = groupInput.value.trim();
+      const info = PLAYER_DATA[groupValue]?.[inputName];
 
       if (!inputName || !groupValue) {
-        jobDisplay.textContent = '직업: (이름과 조를 입력해주세요)';
+        jobDisplay.textContent = '직업: 이름과 조를 입력하면 표시됩니다';
         jobDisplay.style.color = '#ffeb3b';
-        return;
-      }
-
-      if (PLAYER_DATA[groupValue]) {
-        const playerInfo = PLAYER_DATA[groupValue][inputName];
-        if (playerInfo) {
-          jobDisplay.textContent = `직업: ${playerInfo.job}`;
-          jobDisplay.style.color = '#00ff00';
-        } else {
-          jobDisplay.textContent = '등록되지 않은 이름입니다.';
-          jobDisplay.style.color = '#ff4444';
-        }
+      } else if (info) {
+        jobDisplay.textContent = `직업: ${info.job} (${ROLE_INFO[info.roleKey].skill})`;
+        jobDisplay.style.color = '#7dff9a';
       } else {
-        jobDisplay.textContent = '등록되지 않은 조입니다.';
-        jobDisplay.style.color = '#ff4444';
+        jobDisplay.textContent = '등록된 조/이름을 찾지 못했습니다';
+        jobDisplay.style.color = '#ff6666';
       }
     };
 
@@ -150,59 +163,63 @@ class LoginScene extends Phaser.Scene {
     document.getElementById('login-button').onclick = async () => {
       const inputName = nameInput.value.trim();
       const groupValue = groupInput.value.trim();
-
-      if (!PLAYER_DATA[groupValue]) return alert('등록되지 않은 조 번호입니다!');
-      const playerInfo = PLAYER_DATA[groupValue][inputName];
-      if (!playerInfo) return alert('등록되지 않은 이름입니다!');
+      const playerInfo = PLAYER_DATA[groupValue]?.[inputName];
+      if (!playerInfo) {
+        alert('등록된 조/이름을 확인해주세요. 테스트는 조 999, 이름 tester를 사용할 수 있습니다.');
+        return;
+      }
 
       const client = new Client(COLYSEUS_URL);
       try {
-        const room = await client.joinOrCreate('my_room', { ...playerInfo, group: groupValue, realName: inputName });
+        const room = await client.joinOrCreate('my_room', {
+          ...playerInfo,
+          group: groupValue,
+          realName: inputName,
+        });
         ui.style.display = 'none';
         this.scene.start('GameScene', { room, myInfo: { ...playerInfo, group: groupValue } });
-      } catch (e) { alert('서버 접속 실패! ' + e.message); }
+      } catch (e) {
+        alert(`서버 접속 실패: ${e.message}`);
+      }
     };
   }
 }
 
 class GameScene extends Phaser.Scene {
-  constructor() { super({ key: 'GameScene' }); }
+  constructor() {
+    super({ key: 'GameScene' });
+  }
 
   init(data) {
     this.room = data.room;
     this.myInfo = data.myInfo;
     this.playerSprites = {};
     this.mySprite = null;
-    this.isChangeScene = false;
+    this.wallLayers = [];
+    this.roomMarkers = {};
+    this.clearedRooms = new Set();
+    this.openDoors = new Set();
+    this.objectItemSprites = [];
     this.coordSkillMode = 'idle';
     this.coordSkillTargetId = null;
     this._coordPointerHandler = null;
     this.coordOverlayRoot = null;
-    this.explorerSpeedBuff = 1; // 개척자 속도 버프 배율
-    this.hintText = null; // 분석자 힌트 UI
+    this.hintText = null;
+    this.attackPower = 1;
+    this.attackSpeedBuff = 1;
+    this.moveBuff = 1;
+    this.nextAttackAt = 0;
   }
 
   preload() {
-    this.cameras.main.setBackgroundColor('#2c3e50');
-
-    // Load new map JSON - 현재 7층 맵 불러오기로 세팅!
-    this.load.tilemapTiledJSON('map', '/assets/7floor.tmj');
+    this.cameras.main.setBackgroundColor('#141824');
+    this.load.tilemapTiledJSON('map', '/assets/1floor-new.tmj');
     this.load.image('item', '/assets/item.png');
-
-    // Load 6floor.3.tmj tilesets (원래 쓰던 것들)
-    this.load.image('Wall', '/assets/test.3.png'); // Tiled에서 다시 Wall로 저장됨
+    this.load.image('Wall', '/assets/test.3.png');
     this.load.image('Floor2', '/assets/Floor2.png');
-    this.load.image('Kakao001', '/assets/KakaoTalk_Photo_2026-04-17-13-18-24-001.png');
-    this.load.image('Kakao002', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-002.png');
-    this.load.image('Kakao004', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-004.png');
-    this.load.image('Kakao005', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25 005.png');
-
-    // Load 7floor.tmj tilesets (7층 전용)
     this.load.image('7flo0r', '/assets/7flo0r.png');
     this.load.image('6floor101', '/assets/6floor101.png');
     this.load.image('6floor', '/assets/6floor.png');
-
-    // Fallback load images in case they use old ones
     this.load.image('img1', '/assets/test.1.png');
     this.load.image('img2', '/assets/test.3.png');
     this.load.image('test_buddy1', '/assets/test_buddy1.png');
@@ -211,1048 +228,595 @@ class GameScene extends Phaser.Scene {
     this.load.image('test_buddy4', '/assets/test_buddy4.png');
     this.load.image('test_buddy5', '/assets/test_buddy5.png');
 
-    // 🌟 방금 업로드된 모든 조원들의 캐릭터 이미지(PNG)를 동적으로 로드합니다 🌟
-    Object.keys(PLAYER_DATA).forEach(groupNumber => {
-      const gName = GROUP_NAMES[groupNumber];
-      if (!gName) return;
-      const members = PLAYER_DATA[groupNumber];
-      Object.keys(members).forEach(realName => {
-        const filename = members[realName].character; // 방금 위에서 덮어쓴 그 파일명
-        this.load.image(filename, `/assets/${filename}`);
-      });
+    this.load.image('pixelDungeonTiles', '/assets/game/pixel_dungeon_tileset.png');
+    this.load.image('techTiles', '/assets/game/tech_tileset.png');
+    this.load.image('structure', '/assets/game/structure.png');
+    this.load.image('waterTile', '/assets/game/water.png');
+    this.load.image('buttonPlate', '/assets/game/button.png');
+    this.load.image('uiFrame', '/assets/game/ui_frame.png');
+    this.load.image('uiBar', '/assets/game/ui_bar.png');
+    this.load.image('uiBarFill', '/assets/game/ui_bar_fill.png');
+    ITEM_OBJECT_IMAGES.forEach((key, index) => {
+      this.load.image(key, `/assets/items/item_${String(index + 1).padStart(2, '0')}.png`);
     });
-  }
+    this.load.spritesheet('torchYellow', '/assets/game/torch_yellow.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('potionItems', '/assets/game/potions.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('bossIdle', '/assets/game/boss_vampire_idle.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('bossAttack', '/assets/game/boss_vampire_attack.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('bossHurt', '/assets/game/boss_vampire_hurt.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('bossDeath', '/assets/game/boss_vampire_death.png', { frameWidth: 32, frameHeight: 32 });
 
-  ensureCoordOverlay() {
-    if (this.coordOverlayRoot) return this.coordOverlayRoot;
-    const parent = document.getElementById('game-container');
-    if (!parent) return null;
-    const root = document.createElement('div');
-    root.id = 'coord-skill-overlay';
-    root.style.cssText = [
-      'display:none',
-      'position:absolute',
-      'inset:0',
-      'z-index:150',
-      'pointer-events:auto',
-      'font-family:sans-serif',
-      'box-sizing:border-box'
-    ].join(';');
-    root.innerHTML = `
-      <div id="coord-skill-panel" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-        width:min(360px,92%);max-height:70%;overflow:auto;background:#1a1a1a;color:#fff;border:2px solid #00ff00;
-        border-radius:10px;padding:14px 16px;box-shadow:0 8px 24px rgba(0,0,0,.6);">
-        <div id="coord-skill-title" style="font-size:17px;font-weight:bold;margin-bottom:10px;text-align:center;">팀원 선택</div>
-        <div id="coord-skill-hint" style="font-size:13px;color:#ccc;margin-bottom:12px;text-align:center;line-height:1.4;"></div>
-        <div id="coord-skill-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-        <button type="button" id="coord-skill-cancel" style="margin-top:14px;width:100%;padding:10px;border-radius:8px;border:none;
-          background:#444;color:#fff;font-size:14px;cursor:pointer;">닫기 (ESC)</button>
-      </div>
-    `;
-    parent.appendChild(root);
-    root.querySelector('#coord-skill-cancel').onclick = () => this.closeCoordinatorSkillFlow();
-    this.coordOverlayRoot = root;
-    return root;
-  }
-
-  closeCoordinatorSkillFlow() {
-    this.coordSkillMode = 'idle';
-    this.coordSkillTargetId = null;
-    if (this._coordPointerHandler) {
-      this.input.off('pointerdown', this._coordPointerHandler);
-      this._coordPointerHandler = null;
-    }
-    if (this.coordOverlayRoot) {
-      this.coordOverlayRoot.style.display = 'none';
-    }
-    if (this.scoreText && this._baseHudText) {
-      this.scoreText.setText(this._baseHudText);
-    }
-  }
-
-  openCoordinatorSkillFlow() {
-    if (this.myInfo.character !== 'test_buddy4') return;
-    const root = this.ensureCoordOverlay();
-    if (!root) return;
-    this.coordSkillMode = 'picking';
-    this.coordSkillTargetId = null;
-    if (this._coordPointerHandler) {
-      this.input.off('pointerdown', this._coordPointerHandler);
-      this._coordPointerHandler = null;
-    }
-    root.style.display = 'block';
-    const title = root.querySelector('#coord-skill-title');
-    const hint = root.querySelector('#coord-skill-hint');
-    const list = root.querySelector('#coord-skill-list');
-    title.textContent = '이동시킬 팀원 선택';
-    hint.textContent = '같은 모둠 팀원(본인 포함)을 클릭한 뒤, 맵에서 이동할 위치를 클릭합니다.';
-    list.innerHTML = '';
-
-    const myGroup = String(this.myInfo.group);
-    this.room.state.players.forEach((player, sessionId) => {
-      if (String(player.group) !== myGroup) return;
-      const name = (player.realName && String(player.realName).trim()) || '(이름 없음)';
-      const job = player.job || '';
-      const ch = player.character || '';
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.style.cssText = 'text-align:left;padding:10px 12px;border-radius:8px;border:1px solid #333;background:#2a2a2a;color:#fff;cursor:pointer;font-size:14px;';
-      row.innerHTML = `<span style="color:#7dff9a;font-weight:bold;">${name}</span><br/><span style="color:#aaa;font-size:12px;">${job} · ${ch}</span>`;
-      row.onmouseenter = () => { row.style.background = '#333'; };
-      row.onmouseleave = () => { row.style.background = '#2a2a2a'; };
-      row.onclick = () => {
-        this.coordSkillTargetId = sessionId;
-        this.coordSkillMode = 'placing';
-        list.innerHTML = '';
-        root.style.display = 'none';
-        if (this.scoreText && this._baseHudText) {
-          this.scoreText.setText(
-            `${this._baseHudText} — ${name} 이동: 맵 클릭 (ESC/Shift 취소)`
-          );
+    Object.values(PLAYER_DATA).forEach((members) => {
+      Object.values(members).forEach((info) => {
+        if (info.character.endsWith('.png')) {
+          this.load.image(info.character, `/assets/${info.character}`);
         }
-        this.attachPlacingPointer();
-      };
-      list.appendChild(row);
-    });
-
-    if (!list.children.length) {
-      hint.textContent = '같은 모둠으로 접속한 플레이어가 없습니다.';
-    }
-  }
-
-  attachPlacingPointer() {
-    if (this._coordPointerHandler) {
-      this.input.off('pointerdown', this._coordPointerHandler);
-    }
-    this._coordPointerHandler = (pointer) => {
-      if (this.coordSkillMode !== 'placing' || !this.coordSkillTargetId) return;
-      const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-      this.room.send('coordinatorTeleport', {
-        targetSessionId: this.coordSkillTargetId,
-        x: world.x,
-        y: world.y
       });
-      this.closeCoordinatorSkillFlow();
-    };
-    this.input.on('pointerdown', this._coordPointerHandler);
+    });
   }
 
   create() {
-    this.cameras.main.setBackgroundColor('#2c3e50');
-    this.wallLayers = [];
-    // 시야 가리기용 (Fog of War) 세팅: Phaser 4 전용 (Canvas API 우회 기법)
-    const cw = this.cameras.main.width;
-    const ch = this.cameras.main.height;
-
-    // 네이티브 캔버스 텍스처를 생성하여 완벽히 호환되게 만듬
-    this.fogCanvas = this.textures.createCanvas('fogTex', cw, ch);
-
-    // 생성한 텍스처를 화면 고정 이미지로 덮음
-    this.fogImage = this.add.image(0, 0, 'fogTex')
-      .setOrigin(0, 0)
-      .setDepth(95)
-      .setScrollFactor(0);
-
-    try {
-      const map = this.make.tilemap({ key: 'map' });
-
-      // 카메라와 캐릭터가 맵 밖(회색 영역)으로 나가지 않도록 맵 크기만큼 제한 설정
-      this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
-      this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
-
-      // Binding 6floor.3 맵의 타일셋들
-      const wall = map.addTilesetImage('Wall', 'Wall');
-      const floor2 = map.addTilesetImage('Floor2', 'Floor2');
-      const kakao001 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-24-001', 'Kakao001');
-      const kakao002 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-002', 'Kakao002');
-      const kakao004 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-004', 'Kakao004');
-      const kakao005 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25-005', 'Kakao005');
-
-      // Binding 7floor 맵의 타일셋들
-      const t7flo0r = map.addTilesetImage('7flo0r', '7flo0r');
-      const t6floor101 = map.addTilesetImage('6floor101', '6floor101');
-      const t6floor = map.addTilesetImage('6floor', '6floor');
-
-      // Fallbacks if they still use old map names internally
-      const tiles1 = map.addTilesetImage('test.1', 'img1');
-      const tiles2 = map.addTilesetImage('test.3', 'img2');
-
-      // 모아놓은 타일들을 거대한 배열로 만들어 줍니다.
-      const allTiles = [
-        wall, floor2, kakao001, kakao002, kakao004, kakao005,
-        t7flo0r, t6floor101, t6floor,
-        tiles1, tiles2
-      ].filter(t => t !== null);
-
-      if (allTiles.length > 0) {
-        map.layers.forEach(layer => {
-          const createdLayer = map.createLayer(layer.name, allTiles, 0, 0);
-
-          // 레이어 이름이 벽, wall, objective 중 하나이거나, 레이어 자체 속성에 collides: true 가 있는지 확인
-          let isWall = layer.name.includes('벽') ||
-            layer.name.toLowerCase().includes('wall') ||
-            layer.name.toLowerCase() === 'objective';
-
-          if (!isWall && layer.properties) {
-            if (Array.isArray(layer.properties)) {
-              if (layer.properties.find(p => p.name === 'collides' && p.value === true)) isWall = true;
-            } else if (layer.properties.collides === true) {
-              isWall = true;
-            }
-          }
-
-          if (createdLayer && isWall) {
-            // Tiled에서 설정한 'collides' 속성이 타일이 아닌 레이어 전체에 걸려있으므로, 
-            // 빈 공간(-1)을 제외한 배치된 모든 타일들을 강제 충돌 물리 벽으로 지정
-            createdLayer.setCollisionByExclusion([-1]);
-            this.wallLayers.push(createdLayer);
-          }
-        });
-      }
-    } catch (e) {
-      console.warn("맵을 불러오는 데 실패했습니다. 에셋 경로를 확인하세요.", e);
-    }
-
-    let uiText = `[ ${this.myInfo.group}모둠 ] 접속 성공`;
-    if (this.myInfo.job.includes("조율자")) uiText += " (Space: 스왑 / Shift: 지정 이동)";
-    if (this.myInfo.job.includes("길잡이")) uiText += " (상시: 넓은 시야)";
-    if (this.myInfo.job.includes("분석자")) uiText += " (Space: 힌트 확인)";
-    if (this.myInfo.job.includes("개척자")) uiText += " (Space: 이동 가속)";
-    // if (this.myInfo.job.includes("설계자")) uiText += " (Space: 특수 상호작용)"; 
-    this._baseHudText = uiText;
-
-    this.scoreText = this.add.text(10, 10, uiText, {
-      font: '20px Arial', fill: '#ffffff', stroke: '#000000', strokeThickness: 3
-    }).setScrollFactor(0).setDepth(100);
+    this.createAnimations();
+    this.createMapLayers();
+    this.createDungeonRooms();
+    this.createBoss();
+    this.createHud();
+    this.createFog();
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESCAPE);
+    this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.attackKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+    this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.numKeys = [
+      this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE),
+      this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO),
+      this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE),
+      this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR),
+      this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FIVE),
+    ];
 
-    // 💡 서버 메시지 리스너 등록
-    this.room.onMessage("showHint", (data) => {
-      this.displayHint(data.message);
+    this.room.onMessage('showHint', (data) => this.displayHint(data.message));
+    this.room.onMessage('serverMessage', (message) => this.displayHint(message));
+    this.room.onMessage('roomCleared', (data) => {
+      this.clearedRooms.add(data.roomId);
+      this.displayHint(`${data.by} 획득: [${data.itemName}] (${data.total}/15)`);
+      this.refreshRoomVisuals();
+    });
+    this.room.onMessage('skillUsed', (data) => this.displayHint(`${data.name}: ${data.skill}`));
+    this.room.onMessage('applyBuff', (data) => this.applyBuff(data));
+    this.room.onMessage('bossHit', (data) => {
+      this.cameras.main.shake(100, 0.006);
+      this.displayFloatingText(this.bossSprite.x, this.bossSprite.y - 45, `-${data.damage}`, '#ff6666');
+      this.bossSprite.play('boss-hurt', true);
+    });
+    this.room.onMessage('gameEnded', (data) => {
+      this.displayHint(data.message || '게임 클리어!');
+      this.bossSprite.play('boss-death', true);
+      this.cameras.main.flash(900, 255, 245, 180);
     });
 
-    this.room.onMessage("skillUsed", (data) => {
-      // 다른 플레이어가 스킬 썼을 때 알림 (간단히 콘솔 혹은 텍스트)
-      console.log(`[Skill] ${data.name}(${data.job})님이 ${data.skill} 스킬을 사용했습니다!`);
+    this.room.onStateChange(() => {
+      this.syncPlayers();
+      this.syncClearedRooms();
+      this.updateHud();
+      this.updateBossVisual();
     });
 
-    this.room.onStateChange(() => this.syncPlayers());
-    this.syncPlayers(); // 강제 초기 동기화! (이걸 안 하면 움직이기 전까지 캐릭터가 안 보임)
+    this.syncPlayers();
+    this.syncClearedRooms();
+    this.refreshRoomVisuals();
+    this.updateHud();
 
     this.events.once('shutdown', () => {
       this.closeCoordinatorSkillFlow();
-      if (this.coordOverlayRoot && this.coordOverlayRoot.parentNode) {
-        this.coordOverlayRoot.parentNode.removeChild(this.coordOverlayRoot);
-      }
+      if (this.coordOverlayRoot?.parentNode) this.coordOverlayRoot.parentNode.removeChild(this.coordOverlayRoot);
       this.coordOverlayRoot = null;
+    });
+
+    this.displayHint(`${this.myInfo.job} 역할로 접속했습니다. E: 방 해결, Space: 직업 스킬, F: 보스 공격, 1~5: 아이템`);
+  }
+
+  createAnimations() {
+    if (!this.anims.exists('torch-burn')) {
+      this.anims.create({ key: 'torch-burn', frames: this.anims.generateFrameNumbers('torchYellow', { start: 0, end: 7 }), frameRate: 8, repeat: -1 });
+      this.anims.create({ key: 'boss-idle', frames: this.anims.generateFrameNumbers('bossIdle', { start: 0, end: 5 }), frameRate: 6, repeat: -1 });
+      this.anims.create({ key: 'boss-attack', frames: this.anims.generateFrameNumbers('bossAttack', { start: 0, end: 15 }), frameRate: 14, repeat: 0 });
+      this.anims.create({ key: 'boss-hurt', frames: this.anims.generateFrameNumbers('bossHurt', { start: 0, end: 2 }), frameRate: 10, repeat: 0 });
+      this.anims.create({ key: 'boss-death', frames: this.anims.generateFrameNumbers('bossDeath', { start: 0, end: 6 }), frameRate: 8, repeat: 0 });
+    }
+  }
+
+  createMapLayers() {
+    try {
+      const map = this.make.tilemap({ key: 'map' });
+      this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+      this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+
+      const allTiles = [
+        map.addTilesetImage('Wall', 'Wall'),
+        map.addTilesetImage('Floor2', 'Floor2'),
+        map.addTilesetImage('7flo0r', '7flo0r'),
+        map.addTilesetImage('6floor101', '6floor101'),
+        map.addTilesetImage('6floor', '6floor'),
+        map.addTilesetImage('6floor-extra', '6floor'),
+        map.addTilesetImage('test.1', 'img1'),
+        map.addTilesetImage('test.3', 'img2'),
+      ].filter(Boolean);
+
+      map.layers.forEach((layer) => {
+        const createdLayer = map.createLayer(layer.name, allTiles, 0, 0);
+        const isWall = layer.name.toLowerCase().includes('wall') || layer.name.toLowerCase() === 'objective';
+        if (createdLayer && isWall) {
+          createdLayer.setCollisionByExclusion([-1]);
+          this.wallLayers.push(createdLayer);
+        }
+      });
+
+      const rawMap = this.cache.tilemap.get('map')?.data;
+      if (rawMap) this.createObjectLayerItems(rawMap);
+    } catch (error) {
+      console.warn('맵 로드 실패, 수동 방 배치만 표시합니다.', error);
+      this.cameras.main.setBounds(0, 0, 1020, 1020);
+      this.physics.world.setBounds(0, 0, 1020, 1020);
+    }
+  }
+
+  createObjectLayerItems(rawMap) {
+    let itemIndex = 0;
+    rawMap.layers
+      .filter((layer) => layer.type === 'objectgroup' && layer.name.toLowerCase().includes('item'))
+      .forEach((layer) => {
+        layer.objects.forEach((object) => {
+          const textureKey = ITEM_OBJECT_IMAGES[itemIndex % ITEM_OBJECT_IMAGES.length];
+          const width = object.width || 36;
+          const height = object.height || 36;
+          const sprite = this.add.image(object.x + width / 2, object.y + height / 2, textureKey)
+            .setDisplaySize(Math.max(32, width), Math.max(32, height))
+            .setDepth(62)
+            .setName(object.name || layer.name);
+          sprite.setData('sourceLayer', layer.name);
+          sprite.setData('objectId', object.id);
+          this.objectItemSprites.push(sprite);
+          itemIndex += 1;
+        });
+      });
+  }
+
+  createDungeonRooms() {
+    const bg = this.add.tileSprite(510, 510, 1020, 1020, 'pixelDungeonTiles').setAlpha(0.08).setDepth(-10);
+    bg.setScrollFactor(1);
+
+    ROOMS.forEach((room) => {
+      const role = ROLE_INFO[room.roles[0]] || ROLE_INFO.analyst;
+      const card = this.add.rectangle(room.x, room.y, 154, 104, 0x101827, 0.86)
+        .setStrokeStyle(2, role.color, 0.75)
+        .setDepth(20);
+      const title = this.add.text(room.x, room.y - 40, `${room.floor} 방${room.no}`, {
+        font: '12px Arial',
+        color: '#e5eefc',
+        stroke: '#000',
+        strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(25);
+      const desc = this.add.text(room.x, room.y - 21, room.title, {
+        font: '13px Arial',
+        color: '#ffffff',
+        stroke: '#000',
+        strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(25);
+      const roleText = this.add.text(room.x, room.y + 35, room.roleLabel, {
+        font: '11px Arial',
+        color: '#a7f3d0',
+        stroke: '#000',
+        strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(25);
+
+      const icon = this.createRoomIcon(room);
+      const item = this.add.sprite(room.x + 54, room.y + 22, 'potionItems', room.no % 6)
+        .setScale(1.35)
+        .setDepth(26);
+
+      const plates = [];
+      (room.plates || []).forEach((plate) => {
+        plates.push(this.add.image(plate.x, plate.y, 'buttonPlate').setScale(1.8).setDepth(22).setTint(0x7dff9a));
+      });
+
+      const door = this.add.rectangle(room.x, room.y, 56, 76, 0x2b1d14, 0.96)
+        .setStrokeStyle(3, 0xfbbf24, 0.9)
+        .setDepth(32);
+      const doorLabel = this.add.text(room.x, room.y, `문 ${room.no}`, {
+        font: '13px Arial',
+        color: '#fff7ad',
+        stroke: '#000',
+        strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(33);
+
+      this.roomMarkers[room.id] = {
+        card,
+        title,
+        desc,
+        roleText,
+        icon,
+        item,
+        plates,
+        door,
+        doorLabel,
+        roomObjects: [card, title, desc, roleText, icon, item, ...plates],
+      };
+      this.setRoomDoorState(room.id, false);
     });
   }
 
+  createRoomIcon(room) {
+    if (room.type === 'torch' || room.type === 'glass') {
+      return this.add.sprite(room.x - 52, room.y + 18, 'torchYellow').setScale(1.6).setDepth(26).play('torch-burn');
+    }
+    if (room.type === 'waterway') {
+      return this.add.image(room.x - 50, room.y + 18, 'waterTile').setScale(1.1).setDepth(26).setTint(0x66e2ff);
+    }
+    if (room.type === 'safe' || room.type === 'sensor') {
+      return this.add.image(room.x - 50, room.y + 18, 'buttonPlate').setScale(2).setDepth(26);
+    }
+    return this.add.image(room.x - 50, room.y + 18, 'structure').setScale(1.65).setDepth(26);
+  }
+
+  setRoomDoorState(roomId, open) {
+    const marker = this.roomMarkers[roomId];
+    if (!marker) return;
+    const cleared = this.clearedRooms.has(roomId);
+    marker.roomObjects.forEach((object) => {
+      const isRewardItem = object === marker.item;
+      object.setVisible((open || cleared) && (!isRewardItem || !cleared));
+    });
+    marker.door.setVisible(!open && !cleared);
+    marker.doorLabel.setVisible(!open && !cleared);
+  }
+
+  openRoomDoor(room) {
+    if (this.openDoors.has(room.id)) return;
+    this.openDoors.add(room.id);
+    this.setRoomDoorState(room.id, true);
+    this.tweens.add({
+      targets: [this.roomMarkers[room.id].door, this.roomMarkers[room.id].doorLabel],
+      alpha: 0,
+      duration: 180,
+    });
+    this.displayHint(`${room.title} 문이 열렸습니다. 안쪽 장치에 가까이 가서 E로 방을 해결하세요.`);
+  }
+
+  createBoss() {
+    this.bossSprite = this.physics.add.sprite(900, 900, 'bossIdle')
+      .setScale(3)
+      .setDepth(80)
+      .play('boss-idle');
+    this.bossName = this.add.text(900, 830, '최종 보스: 하동환 교수', {
+      font: '18px Arial',
+      color: '#ffdddd',
+      stroke: '#000',
+      strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(90);
+  }
+
+  createHud() {
+    this.hudBg = this.add.rectangle(400, 34, 770, 58, 0x08111f, 0.82)
+      .setScrollFactor(0)
+      .setDepth(200)
+      .setStrokeStyle(2, 0x84cc16, 0.35);
+    this.statusText = this.add.text(18, 12, '', {
+      font: '15px Arial',
+      color: '#ffffff',
+      stroke: '#000',
+      strokeThickness: 3,
+    }).setScrollFactor(0).setDepth(201);
+    this.inventoryText = this.add.text(18, 563, '', {
+      font: '15px Arial',
+      color: '#e8f9ff',
+      backgroundColor: '#07111fcc',
+      padding: { x: 10, y: 6 },
+    }).setScrollFactor(0).setDepth(201);
+    this.bossBar = this.add.graphics().setScrollFactor(0).setDepth(201);
+    this.nearText = this.add.text(400, 520, '', {
+      font: '15px Arial',
+      color: '#ffffff',
+      backgroundColor: '#000000aa',
+      padding: { x: 10, y: 6 },
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(202);
+  }
+
+  createFog() {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+    this.fogCanvas = this.textures.createCanvas('fogTex', width, height);
+    this.fogImage = this.add.image(0, 0, 'fogTex')
+      .setOrigin(0, 0)
+      .setDepth(120)
+      .setScrollFactor(0);
+  }
+
   syncPlayers() {
+    const aliveIds = new Set();
     this.room.state.players.forEach((player, sessionId) => {
+      aliveIds.add(sessionId);
       if (!this.playerSprites[sessionId]) {
-        const sprite = this.physics.add.image(player.x, player.y, player.character);
-        sprite.setScale(0.2).setDepth(90);
+        const texture = this.textures.exists(player.character) ? player.character : 'test_buddy1';
+        const sprite = this.physics.add.image(player.x, player.y, texture);
+        sprite.setScale(texture.endsWith('.png') ? 0.32 : 0.45).setDepth(75);
+        sprite.setCircle(Math.max(12, sprite.width * 0.25), sprite.width * 0.25, sprite.height * 0.25);
+        this.wallLayers.forEach((wallLayer) => this.physics.add.collider(sprite, wallLayer));
 
-        // 💡 히트박스를 캐릭터 몸통에 맞는 '원형'으로 변경 (더 매끄러운 이동)
-        // 원의 반지름을 이미지 너비의 약 40%로 설정하여 발밑 위주로 충돌 판정
-        const radius = sprite.width * 0.35;
-        sprite.setCircle(radius, sprite.width * 0.15, sprite.height * 0.15);
+        const label = this.add.text(player.x, player.y - 24, player.realName || player.job, {
+          font: '10px Arial',
+          color: '#ffffff',
+          stroke: '#000',
+          strokeThickness: 3,
+        }).setOrigin(0.5).setDepth(95);
 
-        // 4. 캐릭터와 벽의 충돌 감지 (요청하신 코드 연동)
-        this.wallLayers.forEach(wallLayer => {
-          this.physics.add.collider(sprite, wallLayer);
-        });
-
-        this.playerSprites[sessionId] = sprite;
-
-        const label = this.add.text(player.x, player.y - 15, player.realName, { font: '10px Arial', fill: '#ffffff' }).setOrigin(0.5);
-        this.playerSprites[sessionId].label = label;
-        this.playerSprites[sessionId].label.setDepth(91);
-
+        this.playerSprites[sessionId] = { sprite, label };
         if (sessionId === this.room.sessionId) {
           this.mySprite = sprite;
-          // 캐릭터가 생성된 직후, 카메라가 내 캐릭터를 졸졸 따라다니게 설정 (맵 전체 이동 가능)
-          this.cameras.main.startFollow(this.mySprite, true, 0.1, 0.1);
-          this.mySprite.setCollideWorldBounds(true); // 맵 끝에 부딪히면 멈춤
+          this.cameras.main.startFollow(this.mySprite, true, 0.12, 0.12);
+          this.mySprite.setCollideWorldBounds(true);
         }
       } else {
-        const sprite = this.playerSprites[sessionId];
-
-        // 내 캐릭터가 아닐 때만 서버 좌표를 그대로 덮어씀 (나는 로컬 물리 엔진을 믿음!)
+        const entry = this.playerSprites[sessionId];
         if (sessionId !== this.room.sessionId) {
-          sprite.x = player.x;
-          sprite.y = player.y;
+          entry.sprite.x = player.x;
+          entry.sprite.y = player.y;
         }
-        if (sprite.label) {
-          sprite.label.x = player.x;
-          sprite.label.y = player.y - 15;
-        }
+        entry.label.x = player.x;
+        entry.label.y = player.y - 24;
       }
+    });
+
+    Object.entries(this.playerSprites).forEach(([sessionId, entry]) => {
+      if (aliveIds.has(sessionId)) return;
+      entry.sprite.destroy();
+      entry.label.destroy();
+      delete this.playerSprites[sessionId];
+    });
+  }
+
+  syncClearedRooms() {
+    this.room.state.mapStatus.forEach((status, roomId) => {
+      if (status === 'cleared') this.clearedRooms.add(roomId);
+    });
+    this.refreshRoomVisuals();
+  }
+
+  refreshRoomVisuals() {
+    Object.entries(this.roomMarkers).forEach(([roomId, marker]) => {
+      const cleared = this.clearedRooms.has(roomId);
+      marker.card.setFillStyle(cleared ? 0x11351f : 0x101827, cleared ? 0.9 : 0.86);
+      marker.card.setStrokeStyle(2, cleared ? 0x86efac : 0x64748b, cleared ? 0.95 : 0.55);
+      marker.item.setVisible(!cleared);
+      marker.desc.setColor(cleared ? '#86efac' : '#ffffff');
+      marker.roleText.setText(cleared ? '해결 완료' : ROOM_BY_ID[roomId].roleLabel);
+      marker.plates.forEach((plate) => plate.setTint(cleared ? 0x86efac : 0x7dff9a).setAlpha(cleared ? 0.45 : 1));
+      this.setRoomDoorState(roomId, this.openDoors.has(roomId));
     });
   }
 
   update() {
     if (!this.room || !this.mySprite) return;
+    this.updateFog();
+    this.handleKeys();
+    this.handleMovement();
+    this.updateNearRoomPrompt();
+  }
 
-    // 어둠(안개) 그리기 및 내 주변 시야 뚫기 (웹 네이티브 Canvas 기법)
-    if (this.fogCanvas && this.mySprite) {
-      const ctx = this.fogCanvas.context;
-      const w = this.fogCanvas.width;
-      const h = this.fogCanvas.height;
+  updateFog() {
+    if (!this.fogCanvas || !this.mySprite) return;
+    const ctx = this.fogCanvas.context;
+    const width = this.fogCanvas.width;
+    const height = this.fogCanvas.height;
+    const player = this.room.state.players.get(this.room.sessionId);
+    const vision = player?.vision || this.myInfo.vision || 155;
+    const screenX = this.mySprite.x - this.cameras.main.scrollX;
+    const screenY = this.mySprite.y - this.cameras.main.scrollY;
 
-      // 1. 도화지 초기화 후 전체 까맣게 칠하기
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = 'rgba(0,0,0,0.95)';
-      ctx.fillRect(0, 0, w, h);
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = 'rgba(0,0,0,0.90)';
+    ctx.fillRect(0, 0, width, height);
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, vision, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    this.fogCanvas.refresh();
+  }
 
-      // 2. 화면 상의 플레이어 위치 계산
-      const screenX = this.mySprite.x - this.cameras.main.scrollX;
-      const screenY = this.mySprite.y - this.cameras.main.scrollY;
-      const myVision = this.myInfo.vision || 150;
-
-      // 3. 지우개(destination-out) 모드로 원형 뚫기
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.beginPath();
-      ctx.arc(screenX, screenY, myVision, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 상태 원상복구 및 GPU 텍스처 업데이트
-      ctx.globalCompositeOperation = 'source-over';
-      this.fogCanvas.refresh();
+  handleKeys() {
+    if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.coordSkillMode !== 'idle') {
+      this.closeCoordinatorSkillFlow();
     }
+    if (Phaser.Input.Keyboard.JustDown(this.interactKey)) this.tryResolveNearestRoom();
+    if (Phaser.Input.Keyboard.JustDown(this.attackKey)) this.tryAttackBoss();
 
-    if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
-      if (this.coordSkillMode !== 'idle') this.closeCoordinatorSkillFlow();
-    }
-
-    if (Phaser.Input.Keyboard.JustDown(this.shiftKey)) {
-      if (this.myInfo.job.includes("조율자")) {
-        if (this.coordSkillMode !== 'idle') {
-          this.closeCoordinatorSkillFlow();
-        } else {
-          this.openCoordinatorSkillFlow();
-        }
-      }
-    }
-
-    // 💡 Space Key: 직업별 액티브 스킬 실행
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-      const job = this.myInfo.job;
-      if (job.includes("조율자")) {
-        this.room.send("useSkill"); // 서버의 Swap 스킬 호출
-      } else if (job.includes("분석자")) {
-        this.room.send("useAnalystSkill");
-      } else if (job.includes("개척자")) {
-        // 개척자: 자신에게 3초간 속도 1.8배 버프
-        this.explorerSpeedBuff = 1.8;
-        this.room.send("useExplorerSkill");
-        this.time.delayedCall(3000, () => {
-          this.explorerSpeedBuff = 1.0;
-        });
+      if (this.myInfo.roleKey === 'specialist') {
+        this.room.send('useSkill');
+      } else if (this.myInfo.roleKey === 'analyst') {
+        this.room.send('useAnalystSkill');
+      } else if (this.myInfo.roleKey === 'supporter') {
+        this.moveBuff = 1.7;
+        this.room.send('useExplorerSkill');
+        this.time.delayedCall(3000, () => { this.moveBuff = 1; });
+      } else {
+        this.displayHint(ROLE_INFO[this.myInfo.roleKey].help);
       }
     }
 
+    if (Phaser.Input.Keyboard.JustDown(this.shiftKey) && this.myInfo.roleKey === 'specialist') {
+      if (this.coordSkillMode !== 'idle') this.closeCoordinatorSkillFlow();
+      else this.openCoordinatorSkillFlow();
+    }
+
+    this.numKeys.forEach((key, index) => {
+      if (Phaser.Input.Keyboard.JustDown(key)) this.room.send('useItem', { itemIndex: index });
+    });
+  }
+
+  handleMovement() {
     if (this.coordSkillMode !== 'idle') {
-      this.mySprite.setVelocity(0, 0); // 스킬 모드일 땐 멈춤
+      this.mySprite.setVelocity(0, 0);
       return;
     }
 
     let vx = 0;
     let vy = 0;
-    const speed = 250 * (this.explorerSpeedBuff || 1);
-
+    const speed = 230 * this.moveBuff;
     if (this.cursors.left.isDown || this.wasd.A.isDown) vx = -speed;
     else if (this.cursors.right.isDown || this.wasd.D.isDown) vx = speed;
-
     if (this.cursors.up.isDown || this.wasd.W.isDown) vy = -speed;
     else if (this.cursors.down.isDown || this.wasd.S.isDown) vy = speed;
 
     this.mySprite.setVelocity(vx, vy);
-
     if (vx !== 0 || vy !== 0) {
-      // 로컬 물리 엔진(벽 충돌 완벽 적용된)의 좌표를 서버에 동기화
-      this.room.send("movePos", { x: this.mySprite.x, y: this.mySprite.y });
+      this.room.send('movePos', { x: this.mySprite.x, y: this.mySprite.y });
     }
   }
 
-  // 💡 분석가 힌트 노출 UI 함수
-  displayHint(message) {
-    if (this.hintText) this.hintText.destroy();
+  updateNearRoomPrompt() {
+    const doorRoom = this.getNearestClosedDoor(88);
+    if (doorRoom) {
+      this.nearText.setText(`[E] ${doorRoom.title} 문 열기`);
+      return;
+    }
 
-    this.hintText = this.add.text(400, 500, message, {
-      font: '18px Arial',
-      fill: '#ffff00',
-      backgroundColor: '#000000aa',
-      padding: { x: 10, y: 5 }
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(200);
-
-    // 5초 후 메시지 삭제
-    this.time.delayedCall(5000, () => {
-      if (this.hintText) this.hintText.destroy();
-    });
-  }
-}
-
-const config = {
-  type: Phaser.AUTO, width: 800, height: 600,
-  parent: 'game-container', scene: [LoginScene, GameScene],
-  physics: { default: 'arcade', arcade: { debug: false } }
-};
-new Phaser.Game(config);
-
-
-
-/*
-import * as Phaser from 'phaser';
-import { Client } from 'colyseus.js';
-
-const COLYSEUS_URL = (typeof window !== 'undefined' && window.location.hostname === 'localhost')
-  ? 'ws://localhost:2567' : 'wss://concept-game-server.onrender.com';
-
-const PLAYER_DATA = { // 기존 조원 데이터 유지 
-  1: { "김민재": { job: "분석자(창의)", character: "test_buddy1" }, "박채연": { job: "개척자(성실)", character: "test_buddy2" }, "손유정": { job: "길잡이(외향)", character: "test_buddy3" }, "이승환": { job: "조율자(협력)", character: "test_buddy4" }, "이연재": { job: "설계자(신경)", character: "test_buddy5" } },
-  2: { "윤현근": { job: "분석자(창의)", character: "test_buddy1" }, "심나이": { job: "개척자(성실)", character: "test_buddy2" }, "차시훈": { job: "길잡이(외향)", character: "test_buddy3" }, "이율": { job: "조율자(협력)", character: "test_buddy4" }, "남윤주": { job: "설계자(신경)", character: "test_buddy5" } },
-  3: { "안비비안": { job: "분석자(창의)", character: "test_buddy1" }, "이택준": { job: "개척자(성실)", character: "test_buddy2" }, "송수현": { job: "길잡이(외향)", character: "test_buddy3" }, "김찬영": { job: "조율자(협력)", character: "test_buddy4" } },
-  4: { "김가윤": { job: "분석자(창의)", character: "test_buddy1" }, "김수지": { job: "개척자(성실)", character: "test_buddy2" }, "김재현": { job: "길잡이(외향)", character: "test_buddy3" }, "이용은": { job: "조율자(협력)", character: "test_buddy4" }, "현동건": { job: "설계자(신경)", character: "test_buddy5" } },
-  5: { "라재흠": { job: "분석자(창의)", character: "test_buddy1" }, "이정훈": { job: "개척자(성실)", character: "test_buddy2" }, "이지원": { job: "길잡이(외향)", character: "test_buddy3" }, "홍원준": { job: "조율자(협력)", character: "test_buddy4" } },
-  6: { "석민정": { job: "분석자(창의)", character: "test_buddy1" }, "손채빈": { job: "개척자(성실)", character: "test_buddy2" }, "안은기": { job: "길잡이(외향)", character: "test_buddy3" }, "홍석준": { job: "조율자(협력)", character: "test_buddy4" } },
-  7: { "민승기": { job: "분석자(창의)", character: "test_buddy1" }, "하윤채": { job: "개척자(성실)", character: "test_buddy2" }, "강민서": { job: "길잡이(외향)", character: "test_buddy3" }, "최재석": { job: "조율자(협력)", character: "test_buddy4" } },
-  8: { "김유찬": { job: "분석자(창의)", character: "test_buddy1" }, "박승훈": { job: "개척자(성실)", character: "test_buddy2" }, "박재현": { job: "길잡이(외향)", character: "test_buddy3" }, "배지우": { job: "조율자(협력)", character: "test_buddy4" } },
-  9: { "김담희": { job: "분석자(창의)", character: "test_buddy1" }, "이기서": { job: "개척자(성실)", character: "test_buddy2" }, "장윤서": { job: "길잡이(외향)", character: "test_buddy3" }, "박민우": { job: "조율자(협력)", character: "test_buddy4" }, "박지연": { job: "설계자(신경)", character: "test_buddy5" } },
-  10: { "설진": { job: "분석자(창의)", character: "test_buddy1" }, "장원우": { job: "개척자(성실)", character: "test_buddy2" }, "이지민": { job: "길잡이(외향)", character: "test_buddy3" }, "이지훈": { job: "조율자(협력)", character: "test_buddy4" }, "김태성": { job: "설계자(신경)", character: "test_buddy5" } },
-  11: { "김수현": { job: "분석자(창의)", character: "test_buddy1" }, "이성주": { job: "개척자(성실)", character: "test_buddy2" }, "최시현": { job: "길잡이(외향)", character: "test_buddy3" }, "이승회": { job: "조율자(협력)", character: "test_buddy4" }, "황유주": { job: "설계자(신경)", character: "test_buddy5" } },
-  999: { "테스터": { job: "조율자", character: "test_buddy4" } }
-};
-const GROUP_NAMES = { 1: "only1", 2: "plot twist", 3: "세얼간이", 4: "일단해보조", 5: "HighFive", 6: "허니", 7: "마감직전 오캐스트라", 8: "일단틀어줘", 9: "제작소", 10: "카트라이더", 11: "최예" };
-
-Object.keys(PLAYER_DATA).forEach(groupNumber => {
-  const gName = GROUP_NAMES[groupNumber];
-  if (!gName) return;
-  Object.keys(PLAYER_DATA[groupNumber]).forEach(realName => {
-    const jobBase = PLAYER_DATA[groupNumber][realName].job.split('(')[0];
-    PLAYER_DATA[groupNumber][realName].character = `${groupNumber}조 ${gName}_${realName}_${jobBase}.png`;
-  });
-});
-
-class LoginScene extends Phaser.Scene {
-  constructor() { super({ key: 'LoginScene' }); }
-  create() {
-    const ui = document.getElementById('login-ui');
-    const nameInput = document.getElementById('name-input');
-    const groupInput = document.getElementById('group-input');
-    ui.style.display = 'flex';
-
-    document.getElementById('login-button').onclick = async () => {
-      const inputName = nameInput.value.trim();
-      const groupValue = groupInput.value.trim();
-      if (!PLAYER_DATA[groupValue] || !PLAYER_DATA[groupValue][inputName]) return alert('정보를 확인해주세요!');
-      const playerInfo = PLAYER_DATA[groupValue][inputName];
-      const client = new Client(COLYSEUS_URL);
-      try {
-        const room = await client.joinOrCreate('my_room', { ...playerInfo, group: groupValue, realName: inputName });
-        ui.style.display = 'none';
-        this.scene.start('GameScene', { room, myInfo: { ...playerInfo, group: groupValue } });
-      } catch (e) { alert('서버 접속 실패! ' + e.message); }
-    };
-  }
-}
-
-class GameScene extends Phaser.Scene {
-  constructor() { super({ key: 'GameScene' }); }
-
-  init(data) {
-    this.room = data.room;
-    this.myInfo = data.myInfo;
-    this.playerSprites = {};
-    this.explorerSpeedBuff = 1;
-    this.itemSpeedBuff = 1;
-    this.attackPower = 1;
-    this.hintText = null;
-    this.coordSkillMode = 'idle';
+    const room = this.getNearestRoom(88);
+    if (!room) {
+      this.nearText.setText('');
+      return;
+    }
+    const cleared = this.clearedRooms.has(room.id);
+    const allowed = room.roles.includes(this.myInfo.roleKey);
+    this.nearText.setText(
+      cleared
+        ? `${room.title}: 해결 완료`
+        : `[E] ${room.title} 해결 | 필요: ${room.roleLabel} | 보상: ${room.itemName}${allowed ? '' : ' (다른 역할 필요)'}`
+    );
   }
 
-  preload() {
-    this.cameras.main.setBackgroundColor('#2c3e50');
-    this.load.tilemapTiledJSON('map', '/assets/7floor.tmj');
-    this.load.image('item', '/assets/item.png');
-    // 기타 타일 로드 (원본 유지)
-    this.load.image('Wall', '/assets/test.3.png');
-    this.load.image('Floor2', '/assets/Floor2.png');
-    this.load.image('7flo0r', '/assets/7flo0r.png');
-    this.load.image('6floor', '/assets/6floor.png');
-    Object.keys(PLAYER_DATA).forEach(g => Object.keys(PLAYER_DATA[g]).forEach(n => {
-      this.load.image(PLAYER_DATA[g][n].character, `/assets/${PLAYER_DATA[g][n].character}`);
-    }));
+  tryResolveNearestRoom() {
+    const doorRoom = this.getNearestClosedDoor(94);
+    if (doorRoom) {
+      this.openRoomDoor(doorRoom);
+      return;
+    }
+
+    const room = this.getNearestRoom(94);
+    if (!room) {
+      this.displayHint('가까운 방 장치가 없습니다.');
+      return;
+    }
+    if (this.clearedRooms.has(room.id)) {
+      this.displayHint('이미 해결한 방입니다.');
+      return;
+    }
+    this.room.send('interact', { action: 'resolveRoom', ...room });
   }
 
-  create() {
-    this.wallLayers = [];
-    
-    // 🌟 타이머 UI
-    this.timerText = this.add.text(400, 20, '남은 시간: 05:00', {
-      font: '24px Arial', fill: '#ff4444', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(200);
+  tryAttackBoss() {
+    if ((this.room.state.itemsCollected || 0) < 15) {
+      this.displayHint(`보스전 준비 부족: 아이템 ${this.room.state.itemsCollected || 0}/15`);
+      return;
+    }
+    if (this.time.now < this.nextAttackAt) return;
+    const cooldown = 560 / this.attackSpeedBuff;
+    this.nextAttackAt = this.time.now + cooldown;
+    this.room.send('attackBoss', { attackPower: this.attackPower });
+    this.bossSprite.play('boss-attack', true);
+  }
 
-    // 🌟 인벤토리 UI
-    this.inventoryText = this.add.text(400, 560, '내 아이템: 없음 (숫자키 1~5 사용)', {
-      font: '18px Arial', fill: '#00ff00', backgroundColor: '#000000aa', padding: { x: 10, y: 5 }
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(200);
-
-    // 🌟 가상 15개 방 데이터 구축 (Tiled 대체용)
-    this.obstaclesGroup = this.physics.add.staticGroup();
-    this.interactablesGroup = this.physics.add.group();
-
-    const mockObstacles = [
-      // 7층
-      { id: "r1_bridge", type: "bridge", job: "설계자", x: 100, y: 100, name: "[방1] 다리 건설" },
-      { id: "r2_puzzle", type: "puzzle", job: "분석자", x: 200, y: 100, name: "[방2] 퍼즐 장치" },
-      { id: "r3_wall", type: "wall", job: "개척자", x: 300, y: 100, name: "[방3] 부서지는 벽" },
-      { id: "r4_torch", type: "torch", job: "개척자", x: 400, y: 100, name: "[방4] 미로 횃불" },
-      { id: "r5_safe", type: "safe", job: "any", x: 500, y: 100, keyX: 550, keyY: 100, name: "[방5] 금고" },
-      { id: "r5_key", type: "key_plate", x: 550, y: 100, name: "열쇠 발판" },
-      { id: "r6_quiz", type: "puzzle", job: "분석자", x: 600, y: 100, name: "[방6] 넌센스 퀴즈" },
-      { id: "r7_debris", type: "wall", job: "개척자", x: 700, y: 100, name: "[방7] 거대 잔해" },
-      // 6층
-      { id: "r8_engine", type: "puzzle", job: "분석자", x: 100, y: 300, name: "[방8] 동력 장치" },
-      { id: "r9_glass", type: "torch", job: "길잡이", x: 200, y: 300, name: "[방9] 유리 다리" },
-      { id: "r10_door", type: "dual_door", job: "any", x: 300, y: 300, key1X: 250, key1Y: 350, key2X: 350, key2Y: 350, name: "[방10] 중량 문" },
-      { id: "r10_k1", type: "key_plate", x: 250, y: 350, name: "발판 A" },
-      { id: "r10_k2", type: "key_plate", x: 350, y: 350, name: "발판 B" },
-      { id: "r11_rock", type: "two_step_rock", job: "개척자", x: 400, y: 310, name: "[방11] 매몰된 바위" },
-      { id: "r11_safe", type: "two_step_safe", job: "분석자", x: 400, y: 290, reqId: "r11_rock", name: "[방11] 속 금고" },
-      { id: "r12_water", type: "bridge", job: "설계자", x: 500, y: 300, name: "[방12] 급류 차단벽" },
-      { id: "r13_conv", type: "puzzle", job: "조율자", x: 600, y: 300, name: "[방13] 컨베이어 정지" },
-      { id: "r14_ladder", type: "bridge", job: "설계자", x: 700, y: 300, name: "[방14] 사다리 수리" },
-      { id: "r15_laser", type: "puzzle", job: "분석자", x: 400, y: 450, name: "[방15] 레이저 제어" }
-    ];
-
-    const mockItems = [
-      { id: "i1", name: "!", x: 100, y: 130 }, { id: "i2", name: "케이크", x: 200, y: 130 }, { id: "i3", name: "바퀴", x: 300, y: 130 },
-      { id: "i4", name: "미생물", x: 400, y: 130 }, { id: "i5", name: "조이스틱", x: 500, y: 130 }, { id: "i6", name: "찰흙", x: 600, y: 130 }, { id: "i7", name: "레이싱카", x: 700, y: 130 },
-      { id: "i8", name: "향수", x: 100, y: 330 }, { id: "i9", name: "vlog", x: 200, y: 330 }, { id: "i10", name: "찢어진종이조각", x: 300, y: 330 },
-      { id: "i11", name: "거울", x: 400, y: 270 }, { id: "i12", name: "음표", x: 500, y: 330 }, { id: "i13", name: "시계", x: 600, y: 330 },
-      { id: "i14", name: "곰", x: 700, y: 330 }, { id: "i15", name: "dance", x: 400, y: 480 }
-    ];
-
-    mockObstacles.forEach(d => {
-      let s = this.obstaclesGroup.create(d.x, d.y, 'item');
-      s.customData = d;
-      this.add.text(d.x, d.y - 20, d.name, { font: '12px Arial', fill: '#fff' }).setOrigin(0.5);
-      
-      if (d.type === "wall" || d.type === "two_step_rock") s.setTint(0xff0000); // 길막
-      else if (d.type === "bridge") s.setTint(0x0000ff).setAlpha(0.3); // 다리 예정
-      else if (d.type === "key_plate") { s.setTint(0x00ff00).setAlpha(0.3); this.physics.world.disableBody(s.body); } // 밟는 곳
-      else s.setTint(0x888888); // 금고, 퍼즐
-    });
-
-    mockItems.forEach(d => {
-      let s = this.interactablesGroup.create(d.x, d.y, 'item').setScale(0.5).setTint(0xffff00);
-      s.customData = d; s.isPicking = false;
-      this.add.text(d.x, d.y + 15, d.name, { font: '10px Arial', fill: '#ff0' }).setOrigin(0.5);
-    });
-
-    // 🌟 입력 키 세팅
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.wasd = this.input.keyboard.addKeys('W,A,S,D');
-    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.numKeys = [
-        this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE),
-        this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO),
-        this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE)
-    ];
-
-    // 🌟 서버 이벤트 리스너
-    this.room.onMessage("serverMessage", (msg) => this.displayHint(msg));
-    this.room.onMessage("applyBuff", (data) => {
-        if (data.type === "speed") {
-            this.itemSpeedBuff = data.multiplier;
-            this.time.delayedCall(data.duration, () => this.itemSpeedBuff = 1);
-            this.displayHint(`⚡ 속도 증가 버프 발동!`);
-        } else if (data.type === "attack") {
-            this.attackPower = data.multiplier;
-            this.time.delayedCall(data.duration, () => this.attackPower = 1);
-            this.displayHint(`⚔️ 공격력 증가 버프 발동!`);
-        }
-    });
-
-    this.room.onMessage("itemPicked", (d) => {
-      const s = this.interactablesGroup.getChildren().find(o => o.customData.id === d.id);
-      if (s) s.destroy();
-    });
-
-    this.room.onMessage("pathOpened", (d) => {
-      const s = this.obstaclesGroup.getChildren().find(o => o.customData.id === d.id);
-      if (s) {
-        if (d.type === "wall" || d.type === "two_step_rock") s.destroy();
-        else { s.setAlpha(1).setTint(0xffffff); this.physics.world.disableBody(s.body); }
+  getNearestRoom(maxDistance) {
+    if (!this.mySprite) return null;
+    let best = null;
+    let bestDistance = maxDistance;
+    ROOMS.forEach((room) => {
+      if (!this.openDoors.has(room.id) && !this.clearedRooms.has(room.id)) return;
+      const distance = Phaser.Math.Distance.Between(this.mySprite.x, this.mySprite.y, room.x, room.y);
+      if (distance < bestDistance) {
+        best = room;
+        bestDistance = distance;
       }
     });
-
-    this.room.onStateChange(() => this.syncPlayers());
+    return best;
   }
 
-  syncPlayers() {
-    this.room.state.players.forEach((p, id) => {
-      if (!this.playerSprites[id]) {
-        const s = this.physics.add.image(p.x, p.y, p.character).setScale(0.2).setDepth(90);
-        s.setCircle(s.width * 0.35, s.width * 0.15, s.height * 0.15);
-        this.playerSprites[id] = s;
-        s.label = this.add.text(p.x, p.y - 15, p.realName, { font: '10px Arial' }).setOrigin(0.5).setDepth(91);
-
-        if (id === this.room.sessionId) {
-          this.mySprite = s;
-          this.physics.add.overlap(this.mySprite, this.interactablesGroup, (me, item) => {
-            if (!item.isPicking) {
-              item.isPicking = true;
-              this.room.send("interact", { action: "pickItem", targetId: item.customData.id, targetName: item.customData.name });
-            }
-          });
-          this.physics.add.collider(this.mySprite, this.obstaclesGroup, null, (me, obj) => {
-            return obj.customData.type === "wall" || obj.customData.type === "two_step_rock"; // 벽만 길막
-          });
-        }
-      } else {
-        const s = this.playerSprites[id];
-        if (id !== this.room.sessionId) { s.x = p.x; s.y = p.y; }
-        if (s.label) { s.label.x = p.x; s.label.y = p.y - 15; }
+  getNearestClosedDoor(maxDistance) {
+    if (!this.mySprite) return null;
+    let best = null;
+    let bestDistance = maxDistance;
+    ROOMS.forEach((room) => {
+      if (this.openDoors.has(room.id) || this.clearedRooms.has(room.id)) return;
+      const distance = Phaser.Math.Distance.Between(this.mySprite.x, this.mySprite.y, room.x, room.y);
+      if (distance < bestDistance) {
+        best = room;
+        bestDistance = distance;
       }
     });
+    return best;
+  }
 
-    // ⏱️ 타이머 및 UI 동기화
-    const t = this.room.state.timeRemaining;
-    if (t !== undefined) {
-      this.timerText.setText(`남은 시간: ${Math.floor(t/60).toString().padStart(2,'0')}:${(t%60).toString().padStart(2,'0')}`);
+  applyBuff(data) {
+    const duration = data.duration || 3000;
+    const multiplier = data.multiplier || 2;
+    if (data.type === 'attack') {
+      this.attackPower = multiplier;
+      this.displayHint(`[${data.itemName}] 공격력 ${multiplier}배`);
+      this.time.delayedCall(duration, () => { this.attackPower = 1; });
     }
-    const myP = this.room.state.players.get(this.room.sessionId);
-    if (myP && myP.inventory) {
-      this.inventoryText.setText(`내 아이템: ${Array.from(myP.inventory).join(", ") || '없음'} (숫자 1,2,3 사용)`);
+    if (data.type === 'speed') {
+      this.moveBuff = multiplier;
+      this.displayHint(`[${data.itemName}] 이동 속도 ${multiplier}배`);
+      this.time.delayedCall(duration, () => { this.moveBuff = 1; });
+    }
+    if (data.type === 'attackSpeed') {
+      this.attackSpeedBuff = multiplier;
+      this.displayHint(`[${data.itemName}] 공격 속도 ${multiplier}배`);
+      this.time.delayedCall(duration, () => { this.attackSpeedBuff = 1; });
     }
   }
 
-  update() {
-    if (!this.room || !this.mySprite) return;
+  updateHud() {
+    if (!this.statusText) return;
+    const state = this.room.state;
+    const me = state.players.get(this.room.sessionId);
+    const inventory = me?.inventory ? Array.from(me.inventory) : [];
+    const minutes = String(Math.floor((state.timeRemaining || 0) / 60)).padStart(2, '0');
+    const seconds = String((state.timeRemaining || 0) % 60).padStart(2, '0');
+    const role = ROLE_INFO[this.myInfo.roleKey];
 
-    // 🌟 아이템 사용 (숫자키 1, 2, 3)
-    this.numKeys.forEach((key, idx) => {
-      if (Phaser.Input.Keyboard.JustDown(key)) {
-        const p = this.room.state.players.get(this.room.sessionId);
-        if (p && p.inventory && p.inventory.length > idx) this.room.send("useItem", { itemIndex: idx });
-      }
-    });
+    this.statusText.setText(
+      `[${this.myInfo.group}조] ${this.myInfo.realName || me?.realName} / ${role.job} | 아이템 ${state.itemsCollected || 0}/15 | 남은 시간 ${minutes}:${seconds} | ${role.help}`
+    );
+    this.inventoryText.setText(
+      inventory.length
+        ? `아이템: ${inventory.slice(0, 5).map((item, index) => `${index + 1}.${item}`).join('  ')}`
+        : '아이템 없음 | 방 가까이에서 E로 역할 퍼즐을 해결하세요'
+    );
 
-    // 🌟 만능 상호작용 (Space)
-    if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-      const job = this.myInfo.job;
-      let near = null;
-      this.obstaclesGroup.getChildren().forEach(o => {
-        if (Phaser.Math.Distance.Between(this.mySprite.x, this.mySprite.y, o.x, o.y) < 60) near = o;
-      });
-
-      if (near) {
-        const { type, job: reqJob, id, keyX, keyY, key1X, key1Y, key2X, key2Y, reqId } = near.customData;
-        
-        if (type === "safe") this.room.send("interact", { action: "openSafe", targetId: id, keyX, keyY });
-        else if (type === "dual_door") this.room.send("interact", { action: "openDualDoor", targetId: id, key1X, key1Y, key2X, key2Y });
-        else if (job.includes(reqJob)) {
-          if (type === "two_step_safe") this.room.send("interact", { action: "openTwoStepSafe", targetId: id, reqId });
-          else this.room.send("interact", { action: "openPath", targetId: id, targetType: type });
-        } else {
-          this.displayHint(`🚫 이 상호작용은 [${reqJob}] 직업이 필요합니다!`);
-        }
-      } else {
-        if (job.includes("조율자")) this.room.send("useSkill");
-        else if (job.includes("개척자")) { this.explorerSpeedBuff = 1.8; this.time.delayedCall(3000, () => this.explorerSpeedBuff = 1); }
-      }
-    }
-
-    let vx = 0; let vy = 0;
-    const speed = 250 * (this.explorerSpeedBuff || 1) * (this.itemSpeedBuff || 1);
-    if (this.cursors.left.isDown || this.wasd.A.isDown) vx = -speed;
-    else if (this.cursors.right.isDown || this.wasd.D.isDown) vx = speed;
-    if (this.cursors.up.isDown || this.wasd.W.isDown) vy = -speed;
-    else if (this.cursors.down.isDown || this.wasd.S.isDown) vy = speed;
-    
-    this.mySprite.setVelocity(vx, vy);
-    if (vx !== 0 || vy !== 0) this.room.send("movePos", { x: this.mySprite.x, y: this.mySprite.y });
+    const hp = state.boss?.hp ?? 0;
+    const maxHp = state.boss?.maxHp ?? 1;
+    this.bossBar.clear();
+    this.bossBar.fillStyle(0x111827, 0.95).fillRoundedRect(522, 16, 250, 18, 7);
+    this.bossBar.fillStyle(0xef4444, 0.95).fillRoundedRect(525, 19, 244 * (hp / maxHp), 12, 5);
+    this.bossBar.lineStyle(1, 0xffffff, 0.35).strokeRoundedRect(522, 16, 250, 18, 7);
   }
 
-  displayHint(m) {
-    if (this.hintText) this.hintText.destroy();
-    this.hintText = this.add.text(400, 500, m, { font: '18px Arial', fill: '#ff0', backgroundColor: '#000000aa', padding: 10 }).setOrigin(0.5).setScrollFactor(0).setDepth(300);
-    this.time.delayedCall(4000, () => this.hintText?.destroy());
-  }
-}
-
-new Phaser.Game({ type: Phaser.AUTO, width: 800, height: 600, parent: 'game-container', scene: [LoginScene, GameScene], physics: { default: 'arcade' } });
-
-*/
-
-/*
-// 직업 이름에 '길잡이'가 포함되어 있으면 시야 250, 아니면 기본 150
-const myVision = this.myInfo.job.includes("길잡이") ? 250 : 150;
-
-// 안개 뚫기
-ctx.globalCompositeOperation = 'destination-out';
-ctx.beginPath();
-ctx.arc(sX, sY, myVision, 0, Math.PI * 2);
-ctx.fill();
-*/
-
-/*
-if (job.includes("개척자")) {
-    // 1. 근처에 장애물이 없을 때: 3초간 이동 속도 1.8배 버프 발동
-    if (!nearObstacle) {
-        this.explorerSpeedBuff = 1.8; 
-        this.time.delayedCall(3000, () => { this.explorerSpeedBuff = 1.0; });
-        this.displayHint("🚀 이동 속도가 빨라집니다!");
-    }
-}
-// 이동 속도 계산 시 반영
-const speed = 250 * (this.explorerSpeedBuff || 1);
-*/
-
-/*
-if (nearObstacle) {
-    const reqJob = nearObstacle.customData.job; // 예: "설계자" 또는 "분석자"
-    
-    // 내 직업이 해당 기믹을 담당하는 직업일 때만 실행
-    if (this.myInfo.job.includes(reqJob)) {
-        this.room.send("interact", { 
-            action: "openPath", 
-            targetId: nearObstacle.customData.id, 
-            targetType: nearObstacle.customData.type 
-        });
-    } else {
-        this.displayHint(`🚫 이 상호작용은 [${reqJob}] 전용입니다!`);
-    }
-} else if (job.includes("분석자")) {
-    // 분석가는 장애물이 없을 때 스페이스바를 누르면 힌트 스킬 발동
-    this.room.send("useAnalystSkill");
-}
-*/
-
-/*
-if (Phaser.Input.Keyboard.JustDown(this.shiftKey)) {
-    if (this.myInfo.job.includes("조율자")) {
-        // 팀원 이동 스킬 UI 토글
-        if (this.coordSkillMode !== 'idle') this.closeCoordinatorSkillFlow();
-        else this.openCoordinatorSkillFlow(); 
-    }
-}
-
-// 맵 클릭 시 텔레포트 전송 로직 (attachPlacingPointer 내부)
-this._coordPointerHandler = (pointer) => {
-    const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-    this.room.send('coordinatorTeleport', { 
-        targetSessionId: this.coordSkillTargetId, // 이동시킬 팀원
-        x: world.x, 
-        y: world.y 
-    });
-    this.closeCoordinatorSkillFlow();
-};
-*/
-
-/*
-// 1. mockObstacles 배열 안에 방 9의 숨겨진 발판 데이터 추가
-const mockObstacles = [
-    // ... 기존 데이터 ...
-    { id: "r9_glass_1", type: "hidden_path", job: "길잡이", x: 200, y: 300, name: "[방9] 안전 발판" },
-    { id: "r9_glass_2", type: "hidden_path", job: "길잡이", x: 250, y: 300, name: "[방9] 안전 발판" }
-];
-
-// 2. 장애물 렌더링 부분에 hidden_path (투명 발판) 조건 추가
-mockObstacles.forEach(d => {
-    let s = this.obstaclesGroup.create(d.x, d.y, 'item');
-    s.customData = d;
-    
-    // 이름표(텍스트) 객체도 변수에 담아 제어할 수 있게 합니다
-    s.nameText = this.add.text(d.x, d.y - 20, d.name, { font: '12px Arial', fill: '#fff' }).setOrigin(0.5);
-    
-    if (d.type === "wall" || d.type === "two_step_rock") {
-        s.setTint(0xff0000); 
-    } 
-    else if (d.type === "hidden_path") {
-        // 🌟 길잡이 기믹: 처음에는 완벽히 투명하게(안 보이게) 설정
-        s.setTint(0x00ffff); // 유리 다리 느낌의 청록색
-        s.setAlpha(0);
-        s.nameText.setAlpha(0); // 텍스트도 숨김
-    }
-    // ... 나머지 조건(bridge, key_plate 등) 유지 ...
-});
-*/
-
-/*
-// main.js - create() 내부 서버 리스너 모음에 추가
-
-this.room.onMessage("pathRevealed", (d) => {
-    const s = this.obstaclesGroup.getChildren().find(o => o.customData.id === d.id);
-    if (s) {
-        // 🌟 투명했던 발판이 부드럽게 나타나는 연출 (횃불로 비춘 느낌)
-        this.tweens.add({ targets: [s, s.nameText], alpha: 0.8, duration: 800 });
-        this.displayHint(`🔥 ${d.by}님이 횃불로 안전한 길을 밝혔습니다!`);
-    }
-});
-
-*/
-
-/*
-// main.js - update() 내부 스페이스바 상호작용 로직 수정
-
-if (near) {
-    const { type, job: reqJob, id, keyX, keyY, key1X, key1Y, key2X, key2Y, reqId } = near.customData;
-    
-    if (type === "safe") this.room.send("interact", { action: "openSafe", targetId: id, keyX, keyY });
-    else if (type === "dual_door") this.room.send("interact", { action: "openDualDoor", targetId: id, key1X, key1Y, key2X, key2Y });
-    else if (job.includes(reqJob)) {
-        if (type === "two_step_safe") {
-            this.room.send("interact", { action: "openTwoStepSafe", targetId: id, reqId });
-        } 
-        // 🌟 길잡이의 숨겨진 길 밝히기 액션 전송
-        else if (type === "hidden_path") {
-            this.room.send("interact", { action: "revealPath", targetId: id });
-        } 
-        else {
-            this.room.send("interact", { action: "openPath", targetId: id, targetType: type });
-        }
-    } else {
-        this.displayHint(`🚫 이 상호작용은 [${reqJob}] 직업이 필요합니다!`);
-    }
-}
-*/
-
-/*
-
-// 1. mockObstacles 배열 안에 방 11 데이터 추가
-const mockObstacles = [
-    // ... 기존 데이터 ...
-    // 겉면의 암석 (개척자 전용)
-    { id: "r11_rock", type: "two_step_rock", job: "개척자", x: 400, y: 310, name: "[방11] 매몰된 바위" },
-    
-    // 내부의 금고 (분석가 전용, reqId로 바위와 연결)
-    { id: "r11_safe", type: "two_step_safe", job: "분석자", x: 400, y: 290, reqId: "r11_rock", name: "[방11] 속 금고" }
-];
-
-// 2. 장애물 렌더링 부분에 색상/충돌 속성 추가
-mockObstacles.forEach(d => {
-    let s = this.obstaclesGroup.create(d.x, d.y, 'item');
-    s.customData = d;
-    
-    if (d.type === "wall" || d.type === "two_step_rock") {
-        s.setTint(0xff0000); // 바위는 빨간색 장애물
-    } 
-    else if (d.type === "two_step_safe") {
-        s.setTint(0x888888); // 금고는 회색
-    }
-    // ... 나머지 조건 유지 ...
-});
-*/
-/*
-
-// main.js - update() 내부 스페이스바 상호작용 로직 수정
-
-if (near) {
-    // 🌟 near.customData에서 reqId도 함께 꺼냅니다.
-    const { type, job: reqJob, id, keyX, keyY, key1X, key1Y, key2X, key2Y, reqId } = near.customData;
-    
-    if (type === "safe") this.room.send("interact", { action: "openSafe", targetId: id, keyX, keyY });
-    else if (type === "dual_door") this.room.send("interact", { action: "openDualDoor", targetId: id, key1X, key1Y, key2X, key2Y });
-    
-    // 내 직업이 해당 기믹의 요구 직업과 맞을 때
-    else if (job.includes(reqJob)) {
-        
-        // 🌟 [방 11] 분석가의 연계 금고 해제 요청
-        if (type === "two_step_safe") {
-            this.room.send("interact", { action: "openTwoStepSafe", targetId: id, reqId: reqId });
-        } 
-        // 🌟 [방 11] 개척자의 암석 파괴 (기존 openPath 로직 그대로 사용)
-        else {
-            this.room.send("interact", { action: "openPath", targetId: id, targetType: type });
-        }
-        
-    } else {
-        this.displayHint(`🚫 이 상호작용은 [${reqJob}] 직업이 필요합니다!`);
-    }
-}
-*/
-/*
-import * as Phaser from 'phaser';
-import { Client } from 'colyseus.js';
-
-// Render 배포 서버는 `coordinatorTeleport` 핸들러가 없으면 이동이 반영되지 않습니다.
-// 로컬 테스트: `server` 폴더에서 npm install && npm start 후, HTML에 아래 한 줄을 넣거나
-// 이 상수를 'ws://127.0.0.1:2567' 로 바꿉니다.
-// <script>window.__COLYSEUS_ENDPOINT__ = 'ws://127.0.0.1:2567'</script>
-const COLYSEUS_URL =
-  (typeof window !== 'undefined' && window.__COLYSEUS_ENDPOINT__) ||
-  'wss://concept-game-server.onrender.com';
-
-// 📊 1조 ~ 11조 전체 팀원 데이터
-const PLAYER_DATA = {
-  1: {
-    "김민재": { job: "분석자(창의)", character: "test_buddy1" },
-    "박채연": { job: "개척자(성실)", character: "test_buddy2" },
-    "손유정": { job: "길잡이(외향)", character: "test_buddy3" },
-    "이승환": { job: "조율자(협력)", character: "test_buddy4" },
-    "이연재": { job: "설계자(신경)", character: "test_buddy5" }
-  },
-  2: {
-    "윤현근": { job: "분석자(창의)", character: "test_buddy1" },
-    "심나이": { job: "개척자(성실)", character: "test_buddy2" },
-    "차시훈": { job: "길잡이(외향)", character: "test_buddy3" },
-    "이율":   { job: "조율자(협력)", character: "test_buddy4" },
-    "남윤주": { job: "설계자(신경)", character: "test_buddy5" }
-  },
-  3: {
-    "안비비안": { job: "분석자(창의)", character: "test_buddy1" },
-    "이택준": { job: "개척자(성실)", character: "test_buddy2" },
-    "송수현": { job: "길잡이(외향)", character: "test_buddy3" },
-    "김찬영": { job: "조율자(협력)", character: "test_buddy4" }
-  },
-  4: {
-    "김가윤": { job: "분석자(창의)", character: "test_buddy1" },
-    "김수지": { job: "개척자(성실)", character: "test_buddy2" },
-    "김재현": { job: "길잡이(외향)", character: "test_buddy3" },
-    "이용은": { job: "조율자(협력)", character: "test_buddy4" },
-    "현동건": { job: "설계자(신경)", character: "test_buddy5" }
-  },
-  5: {
-    "라재흠": { job: "분석자(창의)", character: "test_buddy1" },
-    "이정훈": { job: "개척자(성실)", character: "test_buddy2" },
-    "이지원": { job: "길잡이(외향)", character: "test_buddy3" },
-    "홍원준": { job: "조율자(협력)", character: "test_buddy4" }
-  },
-  6: {
-    "석민정": { job: "분석자(창의)", character: "test_buddy1" },
-    "손채빈": { job: "개척자(성실)", character: "test_buddy2" },
-    "안은기": { job: "길잡이(외향)", character: "test_buddy3" },
-    "홍석준": { job: "조율자(협력)", character: "test_buddy4" }
-  },
-  7: {
-    "민승기": { job: "분석자(창의)", character: "test_buddy1" },
-    "하윤채": { job: "개척자(성실)", character: "test_buddy2" },
-    "강민서": { job: "길잡이(외향)", character: "test_buddy3" },
-    "최재석": { job: "조율자(협력)", character: "test_buddy4" }
-  },
-  8: {
-    "김유찬": { job: "분석자(창의)", character: "test_buddy1" },
-    "박승훈": { job: "개척자(성실)", character: "test_buddy2" },
-    "박재현": { job: "길잡이(외향)", character: "test_buddy3" },
-    "배지우": { job: "조율자(협력)", character: "test_buddy4" }
-  },
-  9: {
-    "김담희": { job: "분석자(창의)", character: "test_buddy1" },
-    "이기서": { job: "개척자(성실)", character: "test_buddy2" },
-    "장윤서": { job: "길잡이(외향)", character: "test_buddy3" },
-    "박민우": { job: "조율자(협력)", character: "test_buddy4" },
-    "박지연": { job: "설계자(신경)", character: "test_buddy5" }
-  },
-  10: {
-    "설진":   { job: "분석자(창의)", character: "test_buddy1" },
-    "장원우": { job: "개척자(성실)", character: "test_buddy2" },
-    "이지민": { job: "길잡이(외향)", character: "test_buddy3" },
-    "이지훈": { job: "조율자(협력)", character: "test_buddy4" },
-    "김태성": { job: "설계자(신경)", character: "test_buddy5" }
-  },
-  11: {
-    "김수현": { job: "분석자(창의)", character: "test_buddy1" },
-    "이성주": { job: "개척자(성실)", character: "test_buddy2" },
-    "최시현": { job: "길잡이(외향)", character: "test_buddy3" },
-    "이승회": { job: "조율자(협력)", character: "test_buddy4" },
-    "황유주": { job: "설계자(신경)", character: "test_buddy5" }
-  },
-  999: {
-    "테스터": { job: "조율자", character: "test_buddy4" }
-  }
-};
-
-class LoginScene extends Phaser.Scene {
-  constructor() { super({ key: 'LoginScene' }); }
-  create() {
-    const ui = document.getElementById('login-ui');
-    const nameInput = document.getElementById('name-input');
-    const groupInput = document.getElementById('group-input');
-    const jobDisplay = document.getElementById('job-display');
-    ui.style.display = 'flex';
-
-    const updateJobDisplay = () => {
-      const inputName = nameInput.value.trim();
-      const groupValue = groupInput.value.trim();
-      
-      if (!inputName || !groupValue) {
-        jobDisplay.textContent = '직업: (이름과 조를 입력해주세요)';
-        jobDisplay.style.color = '#ffeb3b';
-        return;
-      }
-      
-      if (PLAYER_DATA[groupValue]) {
-        const playerInfo = PLAYER_DATA[groupValue][inputName];
-        if (playerInfo) {
-          jobDisplay.textContent = `직업: ${playerInfo.job}`;
-          jobDisplay.style.color = '#00ff00';
-        } else {
-          jobDisplay.textContent = '등록되지 않은 이름입니다.';
-          jobDisplay.style.color = '#ff4444';
-        }
-      } else {
-        jobDisplay.textContent = '등록되지 않은 조입니다.';
-        jobDisplay.style.color = '#ff4444';
-      }
-    };
-
-    nameInput.addEventListener('input', updateJobDisplay);
-    groupInput.addEventListener('input', updateJobDisplay);
-
-    document.getElementById('login-button').onclick = async () => {
-      const inputName = nameInput.value.trim();
-      const groupValue = groupInput.value.trim();
-      
-      if (!PLAYER_DATA[groupValue]) return alert('등록되지 않은 조 번호입니다!');
-      const playerInfo = PLAYER_DATA[groupValue][inputName];
-      if (!playerInfo) return alert('등록되지 않은 이름입니다!');
-      
-      const client = new Client(COLYSEUS_URL);
-      try {
-        const room = await client.joinOrCreate('my_room', { ...playerInfo, group: groupValue, realName: inputName });
-        ui.style.display = 'none';
-        this.scene.start('GameScene', { room, myInfo: { ...playerInfo, group: groupValue } });
-      } catch (e) { alert('서버 접속 실패! ' + e.message); }
-    };
-  }
-}
-
-class GameScene extends Phaser.Scene {
-  constructor() { super({ key: 'GameScene' }); }
-  
-  init(data) {
-    this.room = data.room;
-    this.myInfo = data.myInfo;
-    this.playerSprites = {};
-    this.mySprite = null;
-    this.isChangeScene = false;
-    this.coordSkillMode = 'idle';
-    this.coordSkillTargetId = null;
-    this._coordPointerHandler = null;
-    this.coordOverlayRoot = null;
-  }
-
-  preload() {
-    this.load.image('tiles', '/assets/test.1.png'); 
-    this.load.tilemapTiledJSON('map', '/assets/7floor.tmj'); 
-    this.load.image('item', '/assets/item.png');
-
-    this.load.image('img1', '/assets/test.1.png');
-    this.load.image('img2', '/assets/test.3.png');
-    this.load.image('img3', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-005.png');
-    this.load.image('img4', '/assets/KakaoTalk_Photo_2026-04-17-13-18-25-002.png');
-    
-    for (let i = 1; i <= 5; i++) {
-      this.load.image(`test_buddy${i}`, `/assets/test_buddy${i}.png`);
+  updateBossVisual() {
+    const boss = this.room.state.boss;
+    if (!boss || !this.bossSprite) return;
+    this.bossSprite.x = boss.x;
+    this.bossSprite.y = boss.y;
+    if (boss.status === 'stun') this.bossSprite.setTint(0x66e2ff);
+    else if (boss.status === 'weak') this.bossSprite.setTint(0xffd166);
+    else if (boss.status === 'defeated') this.bossSprite.setTint(0x999999);
+    else this.bossSprite.clearTint();
+    if (boss.status === 'idle' && !this.bossSprite.anims.isPlaying) {
+      this.bossSprite.play('boss-idle', true);
     }
   }
 
@@ -1269,23 +833,70 @@ class GameScene extends Phaser.Scene {
       'z-index:150',
       'pointer-events:auto',
       'font-family:sans-serif',
-      'box-sizing:border-box'
+      'box-sizing:border-box',
     ].join(';');
     root.innerHTML = `
       <div id="coord-skill-panel" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-        width:min(360px,92%);max-height:70%;overflow:auto;background:#1a1a1a;color:#fff;border:2px solid #00ff00;
-        border-radius:10px;padding:14px 16px;box-shadow:0 8px 24px rgba(0,0,0,.6);">
-        <div id="coord-skill-title" style="font-size:17px;font-weight:bold;margin-bottom:10px;text-align:center;">팀원 선택</div>
-        <div id="coord-skill-hint" style="font-size:13px;color:#ccc;margin-bottom:12px;text-align:center;line-height:1.4;"></div>
+        width:min(380px,92%);max-height:70%;overflow:auto;background:#101827;color:#fff;border:2px solid #a78bfa;
+        border-radius:12px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.65);">
+        <div id="coord-skill-title" style="font-size:18px;font-weight:bold;margin-bottom:8px;text-align:center;">팀원 지정 이동</div>
+        <div id="coord-skill-hint" style="font-size:13px;color:#cbd5e1;margin-bottom:12px;text-align:center;line-height:1.45;">같은 조 팀원을 고르고 맵 위 목적지를 클릭하세요.</div>
         <div id="coord-skill-list" style="display:flex;flex-direction:column;gap:8px;"></div>
         <button type="button" id="coord-skill-cancel" style="margin-top:14px;width:100%;padding:10px;border-radius:8px;border:none;
-          background:#444;color:#fff;font-size:14px;cursor:pointer;">닫기 (ESC)</button>
+          background:#334155;color:#fff;font-size:14px;cursor:pointer;">닫기 (ESC)</button>
       </div>
     `;
     parent.appendChild(root);
     root.querySelector('#coord-skill-cancel').onclick = () => this.closeCoordinatorSkillFlow();
     this.coordOverlayRoot = root;
     return root;
+  }
+
+  openCoordinatorSkillFlow() {
+    const root = this.ensureCoordOverlay();
+    if (!root) return;
+    this.coordSkillMode = 'picking';
+    this.coordSkillTargetId = null;
+    if (this._coordPointerHandler) {
+      this.input.off('pointerdown', this._coordPointerHandler);
+      this._coordPointerHandler = null;
+    }
+
+    const list = root.querySelector('#coord-skill-list');
+    list.innerHTML = '';
+    root.style.display = 'block';
+    const myGroup = String(this.myInfo.group);
+
+    this.room.state.players.forEach((player, sessionId) => {
+      if (String(player.group) !== myGroup) return;
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.style.cssText = 'text-align:left;padding:10px 12px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;cursor:pointer;font-size:14px;';
+      row.innerHTML = `<b style="color:#c4b5fd;">${player.realName || '(이름 없음)'}</b><br/><span style="font-size:12px;color:#cbd5e1;">${player.job}</span>`;
+      row.onclick = () => {
+        this.coordSkillTargetId = sessionId;
+        this.coordSkillMode = 'placing';
+        root.style.display = 'none';
+        this.displayHint(`${player.realName} 이동 위치를 맵에서 클릭하세요. ESC로 취소`);
+        this.attachPlacingPointer();
+      };
+      list.appendChild(row);
+    });
+  }
+
+  attachPlacingPointer() {
+    if (this._coordPointerHandler) this.input.off('pointerdown', this._coordPointerHandler);
+    this._coordPointerHandler = (pointer) => {
+      if (this.coordSkillMode !== 'placing' || !this.coordSkillTargetId) return;
+      const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      this.room.send('coordinatorTeleport', {
+        targetSessionId: this.coordSkillTargetId,
+        x: world.x,
+        y: world.y,
+      });
+      this.closeCoordinatorSkillFlow();
+    };
+    this.input.on('pointerdown', this._coordPointerHandler);
   }
 
   closeCoordinatorSkillFlow() {
@@ -1295,188 +906,52 @@ class GameScene extends Phaser.Scene {
       this.input.off('pointerdown', this._coordPointerHandler);
       this._coordPointerHandler = null;
     }
-    if (this.coordOverlayRoot) {
-      this.coordOverlayRoot.style.display = 'none';
-    }
-    if (this.scoreText && this._baseHudText) {
-      this.scoreText.setText(this._baseHudText);
-    }
+    if (this.coordOverlayRoot) this.coordOverlayRoot.style.display = 'none';
   }
 
-  openCoordinatorSkillFlow() {
-    if (this.myInfo.character !== 'test_buddy4') return;
-    const root = this.ensureCoordOverlay();
-    if (!root) return;
-    this.coordSkillMode = 'picking';
-    this.coordSkillTargetId = null;
-    if (this._coordPointerHandler) {
-      this.input.off('pointerdown', this._coordPointerHandler);
-      this._coordPointerHandler = null;
-    }
-    root.style.display = 'block';
-    const title = root.querySelector('#coord-skill-title');
-    const hint = root.querySelector('#coord-skill-hint');
-    const list = root.querySelector('#coord-skill-list');
-    title.textContent = '이동시킬 팀원 선택';
-    hint.textContent = '같은 모둠 팀원(본인 포함)을 클릭한 뒤, 맵에서 이동할 위치를 클릭합니다.';
-    list.innerHTML = '';
-
-    const myGroup = String(this.myInfo.group);
-    this.room.state.players.forEach((player, sessionId) => {
-      if (String(player.group) !== myGroup) return;
-      const name = (player.realName && String(player.realName).trim()) || '(이름 없음)';
-      const job = player.job || '';
-      const ch = player.character || '';
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.style.cssText = 'text-align:left;padding:10px 12px;border-radius:8px;border:1px solid #333;background:#2a2a2a;color:#fff;cursor:pointer;font-size:14px;';
-      row.innerHTML = `<span style="color:#7dff9a;font-weight:bold;">${name}</span><br/><span style="color:#aaa;font-size:12px;">${job} · ${ch}</span>`;
-      row.onmouseenter = () => { row.style.background = '#333'; };
-      row.onmouseleave = () => { row.style.background = '#2a2a2a'; };
-      row.onclick = () => {
-        this.coordSkillTargetId = sessionId;
-        this.coordSkillMode = 'placing';
-        list.innerHTML = '';
-        root.style.display = 'none';
-        if (this.scoreText && this._baseHudText) {
-          this.scoreText.setText(
-            `${this._baseHudText} — ${name} 이동: 맵 클릭 (ESC/Shift 취소)`
-          );
-        }
-        this.attachPlacingPointer();
-      };
-      list.appendChild(row);
-    });
-
-    if (!list.children.length) {
-      hint.textContent = '같은 모둠으로 접속한 플레이어가 없습니다.';
-    }
-  }
-
-  attachPlacingPointer() {
-    if (this._coordPointerHandler) {
-      this.input.off('pointerdown', this._coordPointerHandler);
-    }
-    this._coordPointerHandler = (pointer) => {
-      if (this.coordSkillMode !== 'placing' || !this.coordSkillTargetId) return;
-      const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-      this.room.send('coordinatorTeleport', {
-        targetSessionId: this.coordSkillTargetId,
-        x: world.x,
-        y: world.y
-      });
-      this.closeCoordinatorSkillFlow();
-    };
-    this.input.on('pointerdown', this._coordPointerHandler);
-  }
-
-  create() {
-    this.cameras.main.setBackgroundColor('#2c3e50');
-
-    try {
-        const map = this.make.tilemap({ key: 'map' });
-
-        const tiles1 = map.addTilesetImage('test.1', 'img1');
-        const tiles2 = map.addTilesetImage('test.3', 'img2');
-        const tiles3 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 005', 'img3');
-        const tiles4 = map.addTilesetImage('KakaoTalk_Photo_2026-04-17-13-18-25 002', 'img4');
-
-        const allTiles = [tiles1, tiles2, tiles3, tiles4].filter(t => t !== null);
-
-        if (allTiles.length > 0) {
-            map.layers.forEach(layer => {
-                const createdLayer = map.createLayer(layer.name, allTiles, 0, 0);
-                
-                if (createdLayer && layer.name.includes('벽')) {
-                    createdLayer.setCollisionByProperty({ collides: true });
-                }
-            });
-        }
-    } catch (e) {
-        console.warn("맵을 불러오는 데 실패했습니다. 에셋 경로를 확인하세요.", e);
-    }
-
-    let uiText = `[ ${this.myInfo.group}모둠 ] 접속 성공`;
-    if (this.myInfo.character === "test_buddy4") uiText += " (Shift: 팀원 이동 지정)";
-    this._baseHudText = uiText;
-    
-    this.scoreText = this.add.text(10, 10, uiText, { 
-        font: '20px Arial', fill: '#ffffff', stroke: '#000000', strokeThickness: 3
-    }).setScrollFactor(0).setDepth(100);
-
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
-    this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESCAPE);
-
-    this.room.onStateChange(() => this.syncPlayers());
-
-    this.events.once('shutdown', () => {
-      this.closeCoordinatorSkillFlow();
-      if (this.coordOverlayRoot && this.coordOverlayRoot.parentNode) {
-        this.coordOverlayRoot.parentNode.removeChild(this.coordOverlayRoot);
-      }
-      this.coordOverlayRoot = null;
-    });
-  }
-
-  syncPlayers() {
-    this.room.state.players.forEach((player, sessionId) => {
-      if (!this.playerSprites[sessionId]) {
-        const sprite = this.physics.add.image(player.x, player.y, player.character);
-        sprite.setScale(0.8).setDepth(90); 
-        this.playerSprites[sessionId] = sprite;
-
-        const label = this.add.text(player.x, player.y - 45, player.job, { font: '14px Arial', fill: '#ffffff' }).setOrigin(0.5);
-        this.playerSprites[sessionId].label = label;
-        this.playerSprites[sessionId].label.setDepth(100);
-
-        if (sessionId === this.room.sessionId) {
-          this.mySprite = sprite;
-        }
-      } else {
-        const sprite = this.playerSprites[sessionId];
-        sprite.x = player.x;
-        sprite.y = player.y;
-        if (sprite.label) {
-          sprite.label.x = player.x;
-          sprite.label.y = player.y - 45;
-        }
+  displayHint(message) {
+    if (this.hintText) this.hintText.destroy();
+    this.hintText = this.add.text(400, 490, message, {
+      font: '17px Arial',
+      color: '#fff7ad',
+      backgroundColor: '#000000cc',
+      padding: { x: 12, y: 7 },
+      wordWrap: { width: 720 },
+      align: 'center',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(260);
+    this.time.delayedCall(4200, () => {
+      if (this.hintText) {
+        this.hintText.destroy();
+        this.hintText = null;
       }
     });
   }
 
-  update() {
-    if (!this.room || !this.mySprite) return;
-
-    if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
-      if (this.coordSkillMode !== 'idle') this.closeCoordinatorSkillFlow();
-    }
-
-    if (Phaser.Input.Keyboard.JustDown(this.shiftKey)) {
-      if (this.myInfo.character === "test_buddy4") {
-        if (this.coordSkillMode !== 'idle') {
-          this.closeCoordinatorSkillFlow();
-        } else {
-          this.openCoordinatorSkillFlow();
-        }
-      }
-    }
-
-    if (this.coordSkillMode !== 'idle') return;
-
-    if (this.cursors.left.isDown) this.room.send("move", { dir: "left" });
-    else if (this.cursors.right.isDown) this.room.send("move", { dir: "right" });
-    if (this.cursors.up.isDown) this.room.send("move", { dir: "up" });
-    else if (this.cursors.down.isDown) this.room.send("move", { dir: "down" });
+  displayFloatingText(x, y, text, color) {
+    const floating = this.add.text(x, y, text, {
+      font: '20px Arial',
+      color,
+      stroke: '#000',
+      strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(240);
+    this.tweens.add({
+      targets: floating,
+      y: y - 42,
+      alpha: 0,
+      duration: 700,
+      onComplete: () => floating.destroy(),
+    });
   }
 }
 
 const config = {
-  type: Phaser.AUTO, width: 800, height: 600,
-  parent: 'game-container', scene: [LoginScene, GameScene],
-  physics: { default: 'arcade', arcade: { debug: false } }
+  type: Phaser.AUTO,
+  width: 800,
+  height: 600,
+  parent: 'game-container',
+  scene: [LoginScene, GameScene],
+  physics: { default: 'arcade', arcade: { debug: false } },
+  pixelArt: true,
 };
+
 new Phaser.Game(config);
-
-
-*/
